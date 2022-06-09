@@ -234,7 +234,7 @@ class App:
             self.output[cbItems[i]] = files[i]
             # private funktionen - Ende
 
-    def cut_plant(self, coordinates_cutting_line: Tuple[Tuple[float, float], Tuple[float, float]]):
+    def cut_plant(self, coordinates_cutting_line: List[Tuple[float, float], Tuple[float, float]]):
         """
         Cuts the plant at the nearest branch to the intersection point of the cutting line by removing the
         corresponding chars in the string
