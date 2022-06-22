@@ -6,6 +6,7 @@ import io
 from datetime import datetime
 from typing import Tuple, List
 from shapely.geometry import LineString
+from copy import deepcopy
 # --------------------------benötigte Bibliotheken------------------------------
 # Installierbar über die Anaconda cmd.exe
 # ghostscript wird benötigt, zum speichern der Bilder über den command 
@@ -13,6 +14,7 @@ from shapely.geometry import LineString
 # pillow wird benötigt, installieren über den command 
 # --> conda install -c conda-forge pillow
 from PIL import Image
+import os
 
 # Größe des Fensters
 winHeight = 480
@@ -28,6 +30,7 @@ class App:
         # Parameter from GUI
         self.isdrawing = False
         self.isstopped = False
+        self.cutted= False
         self.rule = tk.StringVar()
         self.axiom = tk.StringVar()
         self.iteration = tk.StringVar()
@@ -68,9 +71,11 @@ class App:
         # Speicherort der Regeln
         self.rules = {}
 
+
         # Speicherort der exportierten Bilder
         self.output = {}
-
+        # Speicherort für die namen der schnitt indizes
+        self.model_cut_images=[]
         # Erstellen der Turtle
         self.screen = turtle.TurtleScreen(self.drawframe)
         self.turtle = turtle.RawTurtle(self.screen)
@@ -98,6 +103,8 @@ class App:
                 self.draw_l_system()
                 self.isdrawing = False
 
+
+
     def pressreset(self):
         """Command des Reset-Buttons"""
         self.isstopped = True
@@ -107,6 +114,26 @@ class App:
         self.itera_cbox.current(0)
         self.itera_cbox['state'] = 'disabled'
         self.resetBtn['state'] = 'disabled'
+        for f in os.listdir("/images"):
+            try:
+                os.remove(f)
+            except OSError as e:
+                print("Error: %s : %s" % (f, e.strerror))
+    def presscutreset(self):
+        """Command des Reset-Buttons"""
+        self.__initTurlteStartPos()
+        self.loaded_bmp = None
+        self.loaded_img = None
+        filename = self.model_cut_images[-1]
+        # prüfen ob ein Bild geladen wurde
+        try:
+            self.loaded_img = tk.PhotoImage(file=filename)
+            self.model_cut_images.pop()
+        except BaseException:
+            showerror('File not found', 'File "' + filename + '" does not exist.')
+            return
+        self.drawframe.create_image((0, 0), image=self.loaded_img)
+        self.drawframe.grid(row=0, column=0, columnspan=5)
 
     def changeItemIndex(self, event):
         """Lädt die Bild-Datei zu der jeweiligen Iteration"""
@@ -125,6 +152,9 @@ class App:
         self.drawframe.grid(row=0, column=0, columnspan=5)
         # funktion für GUI-Elemente - Ende
 
+
+  
+
     # private funktionen werden mit mit "__" deklariert
     def __initTurlteStartPos(self):
         """Initialisiert den Turtle"""
@@ -140,20 +170,28 @@ class App:
             return self.rules[sequence]
         return sequence
 
-    def __derivation(self, axiom, steps):
+    def __cut_rule(self, sequence):
+        """ Sucht in der gegebenen <sequence> nach der entsprechend zu ersetztenden Regel """
+        if sequence in self.rules:
+            return self.cut_rules[sequence]
+        return sequence
+
+    def __derivation(self, derived, steps):
         """ Erzeugt mit der Regel für jeden Iterationsschritt einen Sequenz an Zeichenbefehlen """
-        derived = [axiom]  # seed
         for _ in range(steps):
             next_seq = derived[-1]
             # Für jeden <char> in <next_seq> prüfe, ob die Regel angewendet werden muss
             next_axiom = [self.__rule(char) for char in next_seq]
+            if self.cutted:
+                next_axiom = [self.__cut_rule(char) for char in next_axiom]
             derived.append(''.join(next_axiom))
         return derived
 
     def __splitRule(self, input):
         """input muss "=" enthalten, z.B. "F=FF+[+F-F-F]-[-F+F+F]". F ist der Pattern der mit FF+[+F-F-F]-[-F+F+F] ersetzt wird"""
         x = input.split('=', 1)
-        self.rules[x[0]] = x[1]
+        return {x[0]: x[1]}
+
 
     def __checkAxiomFormat(self, axiomStr):
         """Prüft ob der axiomStr richtig ist"""
@@ -211,13 +249,10 @@ class App:
             posArr.append(len(model[step]) - 1)
         return posArr
 
-    def __save_png(self):
+    def __save_png(self,savename):
         """Speichert das gezeichnete Bild in schwarz-weiß"""
-        now = datetime.today().strftime('%Y-%m-%d_%H-%M-%S-%f')
-        prefix = "Output_LS_" + now
         ps = self.drawframe.postscript(colormode='mono', pagewidth=winWidth - 1, pageheight=winHeight - 1)
         img = Image.open(io.BytesIO(ps.encode('utf-8'))).convert(mode='1')
-        savename = prefix + extension
         img.save(savename)
         return savename
 
@@ -234,7 +269,7 @@ class App:
             self.output[cbItems[i]] = files[i]
             # private funktionen - Ende
 
-    def cut_plant(self, coordinates_cutting_line: List[Tuple[float, float], Tuple[float, float]]):
+    def cut_plant(self, coordinates_cutting_line: List[Tuple[float, float]]):
         """
         Cuts the plant at the nearest branch to the intersection point of the cutting line by removing the
         corresponding chars in the string
@@ -244,13 +279,14 @@ class App:
 
         cutting_index = 0
         for count, coordinates in enumerate(self.coordinates):
-            if self.check_segments_are_crossing(coordinates_cutting_line, coordinates):
+            if self.__check_segments_are_crossing(coordinates_cutting_line, coordinates):
                 cutting_index = count
-        start_index,end_index = self.gets_start_end_to_cut(cutting_index)
+        start_index,end_index = self.__gets_start_end_to_cut(cutting_index)
         self.cutted_branch_index= start_index
         self.cutted_string = self.complete_l_string[:start_index] + self.complete_l_string[end_index:]
+        self.cutted= True
 
-    def gets_start_end_to_cut(self, cutting_index: int) -> Tuple[int, int]:
+    def __gets_start_end_to_cut(self, cutting_index: int) -> Tuple[int, int]:
         """
         Loops trough string to find the indices of the corresponding end and start brackets between which the
         string should be cutted
@@ -268,8 +304,8 @@ class App:
             end_index += 1
             next = self.complete_l_string[end_index]
         return start_index,end_index
-    def check_segments_are_crossing(self, first_segment: List[Tuple[float, float], Tuple[float, float]] ,
-                                    second_segment: List[Tuple[float, float], Tuple[float, float]]) -> bool:
+    def __check_segments_are_crossing(self, first_segment: List[Tuple[float, float]] ,
+                                    second_segment: List[Tuple[float, float]]) -> bool:
         """
         Checks if the two segments given are crossing each other
         :param first_segment: start and end coordinates of first segment
@@ -286,11 +322,21 @@ class App:
         self.isstopped = False
         seg_length = 5
         alpha_zero = 90
-        self.__splitRule(self.rule.get())
-        axiom = self.axiom.get()
-        iterations = int(self.iteration.get())
-        angle = float(self.angle.get())
-        model = self.__derivation(axiom, iterations)
+
+        if (not self.cutted):
+            self.rules = self.__splitRule(self.rule.get())
+            axiom = self.axiom.get()
+            iterations = int(self.iteration.get())
+            self.angle = float(self.angle.get())
+            self.model = [axiom]
+        else:
+            #TODO self.cut_rules, self.cut_axiom und self.cut_iterations should be set by popup, rules has to be approved in popup
+            #TODO also make rules and axiom lowercase
+            self.cutted_string[self.cutted_branch_index] = "["+self.cut_axiom
+            iterations = int(self.cut_iterations)
+            self.model_cut_images.append("Output_LS_" + datetime.today().strftime('%Y-%m-%d_%H-%M-%S-%f') + extension)
+            self.model.append(self.cutted_string)
+        self.model = self.__derivation(self.model, iterations)
         self.turtle.speed(0)  # (0 = am schnellsten)
         self.turtle.setheading(alpha_zero)  # Richtung des Turtles initialisieren  
         stack = []
@@ -298,20 +344,20 @@ class App:
         outputfiles = []
         # Zähler für Prozentanzeige
         count = 0
-        maxCount = len(model[-1])
+        maxCount = len(self.model[-1])
         # suchen nach den Iterationspunkten
-        steps = self.__countModels(model)
+        steps = self.__countModels(self.model)
         # Bei der Regel "F=F" bleibt über mehrere Iterationen das Ergebnis gleich
         if max(steps) == min(steps):
             iterations = 1
         # iteriere durch den letzten String
         self.coordinates = []
-        self.complete_l_string = model[-1]
-        for command in model[-1]:
+        self.complete_l_string = self.model[-1]
+        for command in self.model[-1]:
             if self.isstopped:
                 break
             self.turtle.pd()
-            if command in ["F", "G", "R", "L"]:
+            if command in ["F", "G", "R", "L","f","g","r","l"]:
                 start_coordinate = self.turtle.pos()
                 self.turtle.forward(seg_length)
                 end_coordinate = self.turtle.pos()
@@ -320,9 +366,9 @@ class App:
                 self.turtle.pu()  # pen up - not drawing
                 self.turtle.forward(seg_length)
             elif command == "+":
-                self.turtle.left(angle)
+                self.turtle.left(self.angle)
             elif command == "-":
-                self.turtle.right(angle)
+                self.turtle.right(self.angle)
             elif command == "[":
                 stack.append((self.turtle.position(), self.turtle.heading()))
             elif command == "]":
@@ -333,7 +379,7 @@ class App:
             self.coordinates.append([(0, 0), (0, 0)])
             # einzelnen Bilder pro Iteration speichern
             if count in steps:
-                savename = self.__save_png()
+                savename = self.__save_png(savename="images/Output_LS_" + datetime.today().strftime('%Y-%m-%d_%H-%M-%S-%f') + extension)
                 outputfiles.append(savename)
             percent = count / maxCount * 100
             title = "Lindenmayer-System ," + str(round(percent, 1)) + "% gezeichnet..."
