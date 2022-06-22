@@ -71,11 +71,14 @@ class App:
         # Speicherort der Regeln
         self.rules = {}
 
+        # Speicherort der Strings
+        self.model=[]
 
         # Speicherort der exportierten Bilder
         self.output = {}
         # Speicherort für die namen der schnitt indizes
         self.model_cut_images=[]
+        self.model_indices_of_cuts=[]
         # Erstellen der Turtle
         self.screen = turtle.TurtleScreen(self.drawframe)
         self.turtle = turtle.RawTurtle(self.screen)
@@ -134,6 +137,8 @@ class App:
             return
         self.drawframe.create_image((0, 0), image=self.loaded_img)
         self.drawframe.grid(row=0, column=0, columnspan=5)
+        self.model = self.model[:self.model_indices_of_cuts[-1]]
+        self.model_indices_of_cuts.pop()
 
     def changeItemIndex(self, event):
         """Lädt die Bild-Datei zu der jeweiligen Iteration"""
@@ -251,6 +256,7 @@ class App:
 
     def __save_png(self,savename):
         """Speichert das gezeichnete Bild in schwarz-weiß"""
+        savename= "Output_LS_" + datetime.today().strftime('%Y-%m-%d_%H-%M-%S-%f') + extension
         ps = self.drawframe.postscript(colormode='mono', pagewidth=winWidth - 1, pageheight=winHeight - 1)
         img = Image.open(io.BytesIO(ps.encode('utf-8'))).convert(mode='1')
         img.save(savename)
@@ -334,8 +340,10 @@ class App:
             #TODO also make rules and axiom lowercase
             self.cutted_string[self.cutted_branch_index] = "["+self.cut_axiom
             iterations = int(self.cut_iterations)
-            self.model_cut_images.append("Output_LS_" + datetime.today().strftime('%Y-%m-%d_%H-%M-%S-%f') + extension)
+            savename=self.__save_png()
+            self.model_cut_images.append(savename)
             self.model.append(self.cutted_string)
+            self.model_indices_of_cuts.append(len(self.model) - 1)
         self.model = self.__derivation(self.model, iterations)
         self.turtle.speed(0)  # (0 = am schnellsten)
         self.turtle.setheading(alpha_zero)  # Richtung des Turtles initialisieren  
@@ -379,7 +387,7 @@ class App:
             self.coordinates.append([(0, 0), (0, 0)])
             # einzelnen Bilder pro Iteration speichern
             if count in steps:
-                savename = self.__save_png(savename="images/Output_LS_" + datetime.today().strftime('%Y-%m-%d_%H-%M-%S-%f') + extension)
+                savename = self.__save_png()
                 outputfiles.append(savename)
             percent = count / maxCount * 100
             title = "Lindenmayer-System ," + str(round(percent, 1)) + "% gezeichnet..."
