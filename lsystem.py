@@ -5,9 +5,11 @@ from tkinter import ttk
 import io
 from datetime import datetime
 from typing import Tuple, List
+
+import setuptools.command.egg_info
 from shapely.geometry import LineString
-from copy import deepcopy
-# --------------------------benötigte Bibliotheken------------------------------
+import numpy as np
+#--------------------------benötigte Bibliotheken------------------------------
 # Installierbar über die Anaconda cmd.exe
 # ghostscript wird benötigt, zum speichern der Bilder über den command 
 # --> conda install -c conda-forge ghostscript
@@ -15,7 +17,6 @@ from copy import deepcopy
 # --> conda install -c conda-forge pillow
 from PIL import Image
 import os
-
 # Größe des Fensters
 winHeight = 480
 winWidth = 600
@@ -35,6 +36,9 @@ class App:
         self.axiom = tk.StringVar()
         self.iteration = tk.StringVar()
         self.angle = tk.StringVar()
+        self.regrow_axiom = tk.StringVar()
+        self.regrow_rule = tk.StringVar()
+        self.regrow_iterations = tk.StringVar()
 
         # Aufbau der Gui
         self.master.resizable(False, False)
@@ -44,9 +48,9 @@ class App:
         self.growBtn = ttk.Button(master, text="Grow", width=15, state=tk.NORMAL, command=lambda: self.pressgrow())
         self.growBtn.grid(row=1, columnspan=5, pady=5)
 
-        ttk.Label(master, text="Show Step:").grid(row=2, column=3, sticky=tk.W)
+        ttk.Label(master, text="Show Step:").grid(row=1, column=3, sticky=tk.W)
         self.itera_cbox = ttk.Combobox(master, state=tk.DISABLED)
-        self.itera_cbox.grid(row=3, column=3, columnspan=2, sticky=tk.EW, padx=3)
+        self.itera_cbox.grid(row=2, column=3, columnspan=2, sticky=tk.EW, padx=3)
         self.itera_cbox.bind('<<ComboboxSelected>>', self.changeItemIndex)
 
         ttk.Label(master, text="Axiom:").grid(row=2, column=0, sticky=tk.W)
@@ -68,8 +72,14 @@ class App:
         self.resetBtn = ttk.Button(master, text="Reset", state=tk.DISABLED, command=lambda: self.pressreset())
         self.resetBtn.grid(row=5, column=3, columnspan=2, sticky=tk.E, padx=3)
 
+        self.cutBtn = ttk.Button(master, text="Cut", state=tk.DISABLED, command=lambda: self.presscut())
+        self.cutBtn.grid(row=3, column=3, columnspan=2, sticky=tk.E, padx=3)
+
+        self.resetcutBtn = ttk.Button(master, text="Reset Cut", state=tk.DISABLED, command=lambda: self.presscutreset())
+        self.resetcutBtn.grid(row=4, column=3, columnspan=2, sticky=tk.E, padx=3)
         # Speicherort der Regeln
         self.rules = {}
+        self.regrow_rules = {}
 
         # Speicherort der Strings
         self.model=[]
@@ -84,10 +94,17 @@ class App:
         self.turtle = turtle.RawTurtle(self.screen)
         self.__initTurlteStartPos()
 
+        self.cut_line_turtle = turtle.RawTurtle(self.screen)
+        self.cut_line_turtle.hideturtle()
         # beinhaltet das aktuelle Bild (wenn geladen) - Initialisieren
         self.loaded_img = None
         self.loaded_bmp = None
 
+        #startwerte
+        self.ruleEdit.insert(0,"F=FF-[-F+F+F]+ [+F-F-F]")
+        self.angleEdit.insert(0,"22.5")
+        self.axiomEdit.insert(0,"F")
+        self.iterationEdit.insert(0,2)
     # funktion für GUI-Elemente
     def pressgrow(self):
         """Command des Grow-Buttons"""
@@ -117,13 +134,94 @@ class App:
         self.itera_cbox.current(0)
         self.itera_cbox['state'] = 'disabled'
         self.resetBtn['state'] = 'disabled'
+        self.cutBtn['state'] = 'disabled'
+        self.resetcutBtn['state'] = 'disabled'
         for f in os.listdir("/images"):
             try:
                 os.remove(f)
             except OSError as e:
                 print("Error: %s : %s" % (f, e.strerror))
+
+    def click(self, x, y):
+        self.click_num = self.click_num + 1
+        if self.click_num == 1:
+            self.cut_line_turtle.penup()
+            self.cut_line_turtle.goto(x, y)
+            self.cut_line.append((x,y))
+
+        if self.click_num == 2:
+            self.cut_line_turtle.pendown()
+            self.cut_line_turtle.goto(x, y)
+            self.cut_line.append((x,y))
+            self.cut_window()
+
+    def pressconfirm(self):
+        ruleformatOk = self.__checkRuleFormat(self.regrow_rule.get())
+        axiomformatOk = self.__checkAxiomFormat(self.regrow_axiom.get())
+        iterationformatOk = self.__checkIterationFormat(self.regrow_iterations.get())
+        if ruleformatOk and axiomformatOk and iterationformatOk:
+            self.popup.destroy()
+            self.click = 0
+            self.cut_plant(self.cut_line)
+            self.isstopped = True
+            self.screen.clear()
+            self.__initTurlteStartPos()
+
+            if not self.isdrawing:
+                self.isdrawing = True
+                self.draw_l_system()
+                self.isdrawing = False
+        else:
+            self.errorlabel["text"] = "Falsches Format bitte überprüfe die Einträge"
+
+    def presscancel(self):
+        self.popup.destroy()
+        self.click = 0
+        self.cut_line_turtle.clear()
+    def cut_window(self):
+        # Speicherort der Regeln
+        self.popup = tk.Toplevel(self.master)
+        self.regrow_entry = ttk.Entry(self.popup, width=41, textvariable=self.regrow_rule)
+        self.regrow_axiom_entry = ttk.Entry(self.popup,width=41,textvariable=self.regrow_axiom)
+        self.regrow_iterations_entry = ttk.Entry(self.popup,width=41,textvariable=self.regrow_iterations)
+        self.regrow_confirm = ttk.Button(self.popup, text="Bestätigen", width=15, state=tk.NORMAL,
+                                         command=lambda: self.pressconfirm())
+        self.cancel = ttk.Button(self.popup,text="Abbrechen",width=15, state=tk.NORMAL,
+                                         command=lambda: self.presscancel())
+
+        self.iterationlabel = ttk.Label(self.popup, text="Iterations:")
+        self.axiomlabel = ttk.Label(self.popup, text="Axiom:")
+        self.ruleslabel = ttk.Label(self.popup, text="Regel:")
+        self.errorlabel = ttk.Label(self.popup,text="")
+
+
+        self.axiomlabel.pack()
+        self.regrow_axiom_entry.pack()
+        self.ruleslabel.pack()
+        self.regrow_entry.pack()
+        self.iterationlabel.pack()
+        self.regrow_iterations_entry.pack()
+        self.errorlabel.pack()
+        self.regrow_confirm.pack()
+        self.cancel.pack()
+
+
+        # setze startdaten
+        self.regrow_axiom_entry.insert(0,"F")
+        self.regrow_entry.insert(0,"F=FF-[-F+F]")
+        self.regrow_iterations_entry.insert(0,2)
+
+
+    def presscut(self):
+        """Command des Cut-Buttons"""
+        self.isstopped = True
+        self.cut_line = [] #np.empty([2, 2])
+        self.click_num = 0
+
+        self.screen.onclick(self.click, btn=1)
+
     def presscutreset(self):
-        """Command des Reset-Buttons"""
+        """Command des ResetCut-Buttons"""
         self.__initTurlteStartPos()
         self.loaded_bmp = None
         self.loaded_img = None
@@ -139,6 +237,8 @@ class App:
         self.drawframe.grid(row=0, column=0, columnspan=5)
         self.model = self.model[:self.model_indices_of_cuts[-1]]
         self.model_indices_of_cuts.pop()
+        if len(self.model_indices_of_cuts) == 1:
+            self.resetcutBtn['state'] = 'disabled'
 
     def changeItemIndex(self, event):
         """Lädt die Bild-Datei zu der jeweiligen Iteration"""
@@ -178,7 +278,7 @@ class App:
     def __cut_rule(self, sequence):
         """ Sucht in der gegebenen <sequence> nach der entsprechend zu ersetztenden Regel """
         if sequence in self.rules:
-            return self.cut_rules[sequence]
+            return self.regrow_rules[sequence]
         return sequence
 
     def __derivation(self, derived, steps):
@@ -254,7 +354,7 @@ class App:
             posArr.append(len(model[step]) - 1)
         return posArr
 
-    def __save_png(self,savename):
+    def __save_png(self):
         """Speichert das gezeichnete Bild in schwarz-weiß"""
         savename= "Output_LS_" + datetime.today().strftime('%Y-%m-%d_%H-%M-%S-%f') + extension
         ps = self.drawframe.postscript(colormode='mono', pagewidth=winWidth - 1, pageheight=winHeight - 1)
@@ -287,6 +387,9 @@ class App:
         for count, coordinates in enumerate(self.coordinates):
             if self.__check_segments_are_crossing(coordinates_cutting_line, coordinates):
                 cutting_index = count
+                break
+        if cutting_index==0:
+            self.errorlabel["text"] = "Bitte versuche die Linie durch einen der Äste außer dem Stamm zu ziehen"
         start_index,end_index = self.__gets_start_end_to_cut(cutting_index)
         self.cutted_branch_index= start_index
         self.cutted_string = self.complete_l_string[:start_index] + self.complete_l_string[end_index:]
@@ -302,8 +405,8 @@ class App:
         next = "!"
         start_index = cutting_index
         while (next != "["):
-            start_index = -1
-            next = self.complete_l_string[cutting_index]
+            start_index = start_index -1
+            next = self.complete_l_string[start_index]
 
         end_index = cutting_index
         while (next != "]"):
@@ -333,13 +436,14 @@ class App:
             self.rules = self.__splitRule(self.rule.get())
             axiom = self.axiom.get()
             iterations = int(self.iteration.get())
-            self.angle = float(self.angle.get())
+            self.angle_value = float(self.angle.get())
             self.model = [axiom]
         else:
             #TODO self.cut_rules, self.cut_axiom und self.cut_iterations should be set by popup, rules has to be approved in popup
             #TODO also make rules and axiom lowercase
-            self.cutted_string[self.cutted_branch_index] = "["+self.cut_axiom
-            iterations = int(self.cut_iterations)
+            self.regrow_rules = self.__splitRule(self.regrow_rule.get().lower())
+            self.cutted_string[self.cutted_branch_index] = "["+self.regrow_axiom.get().lower()
+            iterations = int(self.regrow_iterations.get())
             savename=self.__save_png()
             self.model_cut_images.append(savename)
             self.model.append(self.cutted_string)
@@ -366,17 +470,21 @@ class App:
                 break
             self.turtle.pd()
             if command in ["F", "G", "R", "L","f","g","r","l"]:
+                if command in ["F", "G", "R", "L"]:
+                    self.turtle.pencolor("black")
+                if command in ["f","g","r","l"]:
+                    self.turtle.pencolor("blue")
                 start_coordinate = self.turtle.pos()
                 self.turtle.forward(seg_length)
                 end_coordinate = self.turtle.pos()
                 self.coordinates.append([start_coordinate, end_coordinate])
-            elif command == "f":
-                self.turtle.pu()  # pen up - not drawing
-                self.turtle.forward(seg_length)
+            # elif command == "f":
+            #     self.turtle.pu()  # pen up - not drawing
+            #     self.turtle.forward(seg_length)
             elif command == "+":
-                self.turtle.left(self.angle)
+                self.turtle.left(self.angle_value)
             elif command == "-":
-                self.turtle.right(self.angle)
+                self.turtle.right(self.angle_value)
             elif command == "[":
                 stack.append((self.turtle.position(), self.turtle.heading()))
             elif command == "]":
@@ -384,7 +492,8 @@ class App:
                 position, heading = stack.pop()
                 self.turtle.goto(position)
                 self.turtle.setheading(heading)
-            self.coordinates.append([(0, 0), (0, 0)])
+            if command not in ["F", "G", "R", "L","f","g","r","l"]:
+                self.coordinates.append([(0, 0), (0, 0)])
             # einzelnen Bilder pro Iteration speichern
             if count in steps:
                 savename = self.__save_png()
@@ -397,6 +506,9 @@ class App:
         self.__fill_combobox(iterations, outputfiles)
         self.isstopped = False
         self.resetBtn['state'] = 'normal'
+        self.cutBtn['state'] = 'normal'
+        if self.cutted:
+            self.resetcutBtn['state'] = 'normal'
     # public funktionen - End
 
 
