@@ -136,6 +136,7 @@ class App:
         self.resetBtn['state'] = 'disabled'
         self.cutBtn['state'] = 'disabled'
         self.resetcutBtn['state'] = 'disabled'
+        self.cutted = False
         for f in os.listdir("/images"):
             try:
                 os.remove(f)
@@ -153,7 +154,13 @@ class App:
             self.cut_line_turtle.pendown()
             self.cut_line_turtle.goto(x, y)
             self.cut_line.append((x,y))
-            self.cut_window()
+            self.calc_branch_index_cuted_by_line()
+            if self.cutting_index != 0:
+                self.cut_window()
+            else:
+                showerror("Error","No branch hitted with cutting line, Try again")
+                self.click_num = 0
+                self.cut_line_turtle.clear()
 
     def pressconfirm(self):
         ruleformatOk = self.__checkRuleFormat(self.regrow_rule.get())
@@ -171,8 +178,7 @@ class App:
                 self.isdrawing = True
                 self.draw_l_system()
                 self.isdrawing = False
-        else:
-            self.errorlabel["text"] = "Falsches Format bitte überprüfe die Einträge"
+
 
     def presscancel(self):
         self.popup.destroy()
@@ -192,7 +198,6 @@ class App:
         self.iterationlabel = ttk.Label(self.popup, text="Iterations:")
         self.axiomlabel = ttk.Label(self.popup, text="Axiom:")
         self.ruleslabel = ttk.Label(self.popup, text="Regel:")
-        self.errorlabel = ttk.Label(self.popup,text="")
 
 
         self.axiomlabel.pack()
@@ -201,7 +206,6 @@ class App:
         self.regrow_entry.pack()
         self.iterationlabel.pack()
         self.regrow_iterations_entry.pack()
-        self.errorlabel.pack()
         self.regrow_confirm.pack()
         self.cancel.pack()
 
@@ -218,7 +222,7 @@ class App:
         self.cut_line = [] #np.empty([2, 2])
         self.click_num = 0
 
-        self.screen.onclick(self.click, btn=1)
+        self.screen.onclick(self.click)
 
     def presscutreset(self):
         """Command des ResetCut-Buttons"""
@@ -240,6 +244,57 @@ class App:
         if len(self.model_indices_of_cuts) == 1:
             self.resetcutBtn['state'] = 'disabled'
 
+    def calc_branch_index_cuted_by_line(self):
+        self.cutting_index = 0
+        for count, coordinates in enumerate(self.coordinates):
+            if self.__check_segments_are_crossing(self.cut_line, coordinates):
+                self.cutting_index = count
+                break
+
+    def cut_plant(self, coordinates_cutting_line: List[Tuple[float, float]]):
+        """
+        Cuts the plant at the nearest branch to the intersection point of the cutting line by removing the
+        corresponding chars in the string
+        :param coordinates_cutting_line: start and end coordinates of the cutting line
+        :return:
+        """
+
+        start_index,end_index = self.__gets_start_end_to_cut(self.cutting_index)
+        self.cutted_branch_index= start_index
+        self.cutted_string = self.complete_l_string[:start_index+1] + self.regrow_axiom.get().lower()+self.complete_l_string[end_index:]
+        self.cutted= True
+
+    def __gets_start_end_to_cut(self, cutting_index: int) -> Tuple[int, int]:
+        """
+        Loops trough string to find the indices of the corresponding end and start brackets between which the
+        string should be cutted
+        :param cutting_index: the index of the branch in the string which the cutting line intersected
+        :return: start and end index of '[' and ']' bracket
+        """
+        next = "!"
+        start_index = cutting_index
+        while (next != "["):
+            start_index = start_index -1
+            next = self.complete_l_string[start_index]
+
+        end_index = cutting_index
+        while (next != "]"):
+            end_index += 1
+            next = self.complete_l_string[end_index]
+        return start_index,end_index
+    def __check_segments_are_crossing(self, first_segment: List[Tuple[float, float]] ,
+                                    second_segment: List[Tuple[float, float]]) -> bool:
+        """
+        Checks if the two segments given are crossing each other
+        :param first_segment: start and end coordinates of first segment
+        :param second_segment: start and end coordinates of second segment
+        :return: true if they are crossing otherwise false
+        """
+        line_1 = LineString(first_segment)
+        line_2 = LineString(second_segment)
+        return line_1.intersects(line_2)
+
+
     def changeItemIndex(self, event):
         """Lädt die Bild-Datei zu der jeweiligen Iteration"""
         # initialisieren
@@ -257,10 +312,8 @@ class App:
         self.drawframe.grid(row=0, column=0, columnspan=5)
         # funktion für GUI-Elemente - Ende
 
+        # private funktionen werden mit mit "__" deklariert
 
-  
-
-    # private funktionen werden mit mit "__" deklariert
     def __initTurlteStartPos(self):
         """Initialisiert den Turtle"""
         self.turtle.clear()
@@ -277,7 +330,7 @@ class App:
 
     def __cut_rule(self, sequence):
         """ Sucht in der gegebenen <sequence> nach der entsprechend zu ersetztenden Regel """
-        if sequence in self.rules:
+        if sequence in self.regrow_rules:
             return self.regrow_rules[sequence]
         return sequence
 
@@ -296,7 +349,6 @@ class App:
         """input muss "=" enthalten, z.B. "F=FF+[+F-F-F]-[-F+F+F]". F ist der Pattern der mit FF+[+F-F-F]-[-F+F+F] ersetzt wird"""
         x = input.split('=', 1)
         return {x[0]: x[1]}
-
 
     def __checkAxiomFormat(self, axiomStr):
         """Prüft ob der axiomStr richtig ist"""
@@ -356,7 +408,7 @@ class App:
 
     def __save_png(self):
         """Speichert das gezeichnete Bild in schwarz-weiß"""
-        savename= "Output_LS_" + datetime.today().strftime('%Y-%m-%d_%H-%M-%S-%f') + extension
+        savename = "Output_LS_" + datetime.today().strftime('%Y-%m-%d_%H-%M-%S-%f') + extension
         ps = self.drawframe.postscript(colormode='mono', pagewidth=winWidth - 1, pageheight=winHeight - 1)
         img = Image.open(io.BytesIO(ps.encode('utf-8'))).convert(mode='1')
         img.save(savename)
@@ -375,56 +427,6 @@ class App:
             self.output[cbItems[i]] = files[i]
             # private funktionen - Ende
 
-    def cut_plant(self, coordinates_cutting_line: List[Tuple[float, float]]):
-        """
-        Cuts the plant at the nearest branch to the intersection point of the cutting line by removing the
-        corresponding chars in the string
-        :param coordinates_cutting_line: start and end coordinates of the cutting line
-        :return:
-        """
-
-        cutting_index = 0
-        for count, coordinates in enumerate(self.coordinates):
-            if self.__check_segments_are_crossing(coordinates_cutting_line, coordinates):
-                cutting_index = count
-                break
-        if cutting_index==0:
-            self.errorlabel["text"] = "Bitte versuche die Linie durch einen der Äste außer dem Stamm zu ziehen"
-        start_index,end_index = self.__gets_start_end_to_cut(cutting_index)
-        self.cutted_branch_index= start_index
-        self.cutted_string = self.complete_l_string[:start_index] + self.complete_l_string[end_index:]
-        self.cutted= True
-
-    def __gets_start_end_to_cut(self, cutting_index: int) -> Tuple[int, int]:
-        """
-        Loops trough string to find the indices of the corresponding end and start brackets between which the
-        string should be cutted
-        :param cutting_index: the index of the branch in the string which the cutting line intersected
-        :return: start and end index of '[' and ']' bracket
-        """
-        next = "!"
-        start_index = cutting_index
-        while (next != "["):
-            start_index = start_index -1
-            next = self.complete_l_string[start_index]
-
-        end_index = cutting_index
-        while (next != "]"):
-            end_index += 1
-            next = self.complete_l_string[end_index]
-        return start_index,end_index
-    def __check_segments_are_crossing(self, first_segment: List[Tuple[float, float]] ,
-                                    second_segment: List[Tuple[float, float]]) -> bool:
-        """
-        Checks if the two segments given are crossing each other
-        :param first_segment: start and end coordinates of first segment
-        :param second_segment: start and end coordinates of second segment
-        :return: true if they are crossing otherwise false
-        """
-        line_1 = LineString(first_segment)
-        line_2 = LineString(second_segment)
-        return line_1.intersects(line_2)
-
     # public funktionen
     def draw_l_system(self):
         """ Zeichenroutine des L-Systems """
@@ -439,10 +441,8 @@ class App:
             self.angle_value = float(self.angle.get())
             self.model = [axiom]
         else:
-            #TODO self.cut_rules, self.cut_axiom und self.cut_iterations should be set by popup, rules has to be approved in popup
-            #TODO also make rules and axiom lowercase
             self.regrow_rules = self.__splitRule(self.regrow_rule.get().lower())
-            self.cutted_string[self.cutted_branch_index] = "["+self.regrow_axiom.get().lower()
+            #self.cutted_string[self.cutted_branch_index] = "["+self.regrow_axiom.get().lower()
             iterations = int(self.regrow_iterations.get())
             savename=self.__save_png()
             self.model_cut_images.append(savename)
