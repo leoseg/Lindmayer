@@ -5,7 +5,7 @@ from tkinter import ttk
 import io
 from datetime import datetime
 from typing import Tuple, List
-
+from lturtle import Lturtle
 import setuptools.command.egg_info
 from shapely.geometry import LineString
 import numpy as np
@@ -17,10 +17,14 @@ import numpy as np
 # --> conda install -c conda-forge pillow
 from PIL import Image
 import os
+from utils import splitRule, derivation
+from utils_cutting import *
 # Größe des Fensters
 winHeight = 480
 winWidth = 600
 extension = '.png'
+seg_length = 5
+alpha_zero = 90
 
 
 class App:
@@ -75,8 +79,8 @@ class App:
         self.cutBtn = ttk.Button(master, text="Cut", state=tk.DISABLED, command=lambda: self.presscut())
         self.cutBtn.grid(row=3, column=3, columnspan=2, sticky=tk.E, padx=3)
 
-        self.resetcutBtn = ttk.Button(master, text="Reset Cut", state=tk.DISABLED, command=lambda: self.presscutreset())
-        self.resetcutBtn.grid(row=4, column=3, columnspan=2, sticky=tk.E, padx=3)
+        # self.resetcutBtn = ttk.Button(master, text="Reset Cut", state=tk.DISABLED, command=lambda: self.presscutreset())
+        # self.resetcutBtn.grid(row=4, column=3, columnspan=2, sticky=tk.E, padx=3)
         # Speicherort der Regeln
         self.rules = {}
         self.regrow_rules = {}
@@ -86,13 +90,10 @@ class App:
 
         # Speicherort der exportierten Bilder
         self.output = {}
-        # Speicherort für die namen der schnitt indizes
-        self.model_cut_images=[]
-        self.model_indices_of_cuts=[]
+
         # Erstellen der Turtle
         self.screen = turtle.TurtleScreen(self.drawframe)
-        self.turtle = turtle.RawTurtle(self.screen)
-        self.__initTurlteStartPos()
+        self.turtle = Lturtle(winHeight= winHeight,canvas=self.screen)
 
         self.cut_line_turtle = turtle.RawTurtle(self.screen)
         self.cut_line_turtle.hideturtle()
@@ -129,13 +130,12 @@ class App:
         """Command des Reset-Buttons"""
         self.isstopped = True
         self.screen.clear()
-        self.__initTurlteStartPos()
+        self.turtle.reset_turtle(winHeight)
         self.itera_cbox['values'] = [' ']
         self.itera_cbox.current(0)
         self.itera_cbox['state'] = 'disabled'
         self.resetBtn['state'] = 'disabled'
         self.cutBtn['state'] = 'disabled'
-        self.resetcutBtn['state'] = 'disabled'
         self.cutted = False
         for f in os.listdir("/images"):
             try:
@@ -154,7 +154,7 @@ class App:
             self.cut_line_turtle.pendown()
             self.cut_line_turtle.goto(x, y)
             self.cut_line.append((x,y))
-            self.calc_branch_index_cuted_by_line()
+            self.cutting_index = calc_branch_index_cuted_by_line(self.coordinates,self.cut_line)
             if self.cutting_index != 0:
                 self.cut_window()
             else:
@@ -169,14 +169,14 @@ class App:
         if ruleformatOk and axiomformatOk and iterationformatOk:
             self.popup.destroy()
             self.click = 0
-            self.cut_plant(self.cut_line)
+            self.__create_cutted_string()
             self.isstopped = True
-            self.screen.clear()
-            self.__initTurlteStartPos()
+            #self.screen.clear()
+            self.turtle.goto(self.last_position_turtle)
 
             if not self.isdrawing:
                 self.isdrawing = True
-                self.draw_l_system()
+                self.draw_after_cut()
                 self.isdrawing = False
 
 
@@ -224,34 +224,8 @@ class App:
 
         self.screen.onclick(self.click)
 
-    def presscutreset(self):
-        """Command des ResetCut-Buttons"""
-        self.__initTurlteStartPos()
-        self.loaded_bmp = None
-        self.loaded_img = None
-        filename = self.model_cut_images[-1]
-        # prüfen ob ein Bild geladen wurde
-        try:
-            self.loaded_img = tk.PhotoImage(file=filename)
-            self.model_cut_images.pop()
-        except BaseException:
-            showerror('File not found', 'File "' + filename + '" does not exist.')
-            return
-        self.drawframe.create_image((0, 0), image=self.loaded_img)
-        self.drawframe.grid(row=0, column=0, columnspan=5)
-        self.model = self.model[:self.model_indices_of_cuts[-1]]
-        self.model_indices_of_cuts.pop()
-        if len(self.model_indices_of_cuts) == 1:
-            self.resetcutBtn['state'] = 'disabled'
 
-    def calc_branch_index_cuted_by_line(self):
-        self.cutting_index = 0
-        for count, coordinates in enumerate(self.coordinates):
-            if self.__check_segments_are_crossing(self.cut_line, coordinates):
-                self.cutting_index = count
-                break
-
-    def cut_plant(self, coordinates_cutting_line: List[Tuple[float, float]]):
+    def __create_cutted_string(self):
         """
         Cuts the plant at the nearest branch to the intersection point of the cutting line by removing the
         corresponding chars in the string
@@ -259,46 +233,16 @@ class App:
         :return:
         """
 
-        start_index,end_index = self.__gets_start_end_to_cut(self.cutting_index)
+        start_index,end_index = gets_start_end_to_cut(self.cutting_index,self.complete_l_string)
         self.cutted_branch_index= start_index
         self.cutted_string = self.complete_l_string[:start_index+1] + self.regrow_axiom.get().lower()+self.complete_l_string[end_index:]
         self.cutted= True
-
-    def __gets_start_end_to_cut(self, cutting_index: int) -> Tuple[int, int]:
-        """
-        Loops trough string to find the indices of the corresponding end and start brackets between which the
-        string should be cutted
-        :param cutting_index: the index of the branch in the string which the cutting line intersected
-        :return: start and end index of '[' and ']' bracket
-        """
-        next = "!"
-        start_index = cutting_index
-        while (next != "["):
-            start_index = start_index -1
-            next = self.complete_l_string[start_index]
-
-        end_index = cutting_index
-        while (next != "]"):
-            end_index += 1
-            next = self.complete_l_string[end_index]
-        return start_index,end_index
-    def __check_segments_are_crossing(self, first_segment: List[Tuple[float, float]] ,
-                                    second_segment: List[Tuple[float, float]]) -> bool:
-        """
-        Checks if the two segments given are crossing each other
-        :param first_segment: start and end coordinates of first segment
-        :param second_segment: start and end coordinates of second segment
-        :return: true if they are crossing otherwise false
-        """
-        line_1 = LineString(first_segment)
-        line_2 = LineString(second_segment)
-        return line_1.intersects(line_2)
 
 
     def changeItemIndex(self, event):
         """Lädt die Bild-Datei zu der jeweiligen Iteration"""
         # initialisieren
-        self.__initTurlteStartPos()
+        self.turtle.reset_turtle()
         self.loaded_bmp = None
         self.loaded_img = None
         filename = self.output[self.itera_cbox.get()]
@@ -313,42 +257,6 @@ class App:
         # funktion für GUI-Elemente - Ende
 
         # private funktionen werden mit mit "__" deklariert
-
-    def __initTurlteStartPos(self):
-        """Initialisiert den Turtle"""
-        self.turtle.clear()
-        self.turtle.hideturtle()
-        self.turtle.penup()
-        self.turtle.goto(0, -winHeight / 2)
-        self.turtle.pendown()
-
-    def __rule(self, sequence):
-        """ Sucht in der gegebenen <sequence> nach der entsprechend zu ersetztenden Regel """
-        if sequence in self.rules:
-            return self.rules[sequence]
-        return sequence
-
-    def __cut_rule(self, sequence):
-        """ Sucht in der gegebenen <sequence> nach der entsprechend zu ersetztenden Regel """
-        if sequence in self.regrow_rules:
-            return self.regrow_rules[sequence]
-        return sequence
-
-    def __derivation(self, derived, steps):
-        """ Erzeugt mit der Regel für jeden Iterationsschritt einen Sequenz an Zeichenbefehlen """
-        for _ in range(steps):
-            next_seq = derived[-1]
-            # Für jeden <char> in <next_seq> prüfe, ob die Regel angewendet werden muss
-            next_axiom = [self.__rule(char) for char in next_seq]
-            if self.cutted:
-                next_axiom = [self.__cut_rule(char) for char in next_axiom]
-            derived.append(''.join(next_axiom))
-        return derived
-
-    def __splitRule(self, input):
-        """input muss "=" enthalten, z.B. "F=FF+[+F-F-F]-[-F+F+F]". F ist der Pattern der mit FF+[+F-F-F]-[-F+F+F] ersetzt wird"""
-        x = input.split('=', 1)
-        return {x[0]: x[1]}
 
     def __checkAxiomFormat(self, axiomStr):
         """Prüft ob der axiomStr richtig ist"""
@@ -428,35 +336,41 @@ class App:
             # private funktionen - Ende
 
     # public funktionen
+
+    def draw_regrow_system(self):
+        self.isstopped = False
+
+
     def draw_l_system(self):
         """ Zeichenroutine des L-Systems """
         self.isstopped = False
-        seg_length = 5
-        alpha_zero = 90
-
-        if (not self.cutted):
-            self.rules = self.__splitRule(self.rule.get())
-            axiom = self.axiom.get()
-            iterations = int(self.iteration.get())
-            self.angle_value = float(self.angle.get())
-            self.model = [axiom]
-        else:
-            self.regrow_rules = self.__splitRule(self.regrow_rule.get().lower())
-            #self.cutted_string[self.cutted_branch_index] = "["+self.regrow_axiom.get().lower()
-            iterations = int(self.regrow_iterations.get())
-            savename=self.__save_png()
-            self.model_cut_images.append(savename)
-            self.model.append(self.cutted_string)
-            self.model_indices_of_cuts.append(len(self.model) - 1)
-        self.model = self.__derivation(self.model, iterations)
+        self.rules = splitRule(self.rule.get())
+        axiom = self.axiom.get()
+        iterations = int(self.iteration.get())
+        self.angle_value = float(self.angle.get())
+        self.model = [axiom]
+        self.model = derivation(self.model, iterations, self.rules)
+        self.complete_l_string = self.model[-1]
+        self.__evaluate_sequence_to_draw(self.complete_l_string,iterations)
+    # public funktionen - End
+    def draw_after_cut(self):
+        self.isstopped = False
+        self.regrow_rules = splitRule(self.regrow_rule.get().lower())
+        iterations = int(self.regrow_iterations.get())
+        self.model.append(self.cutted_string)
+        regrow_model = derivation(self.regrow_axiom.get().lower(), iterations, self.regrow_rules)
+        self.model = derivation(self.model, iterations, self.rules)
+        self.model[-1] = self.model[-1][:self.cutted_branch_index] + regrow_model + self.model[-1][self.cutted_branch_index:]
+        self.complete_l_string = self.model[-1]
+        self.__evaluate_sequence_to_draw(self.complete_l_string,iterations)
+    def __evaluate_sequence_to_draw(self,sequence:str,iterations,turtle_start_index:int=0):
         self.turtle.speed(0)  # (0 = am schnellsten)
-        self.turtle.setheading(alpha_zero)  # Richtung des Turtles initialisieren  
-        stack = []
+        self.turtle.setheading(alpha_zero)  # Richtung des Turtles initialisieren
         # speichert die Dateinamen
         outputfiles = []
         # Zähler für Prozentanzeige
-        count = 0
-        maxCount = len(self.model[-1])
+        count = turtle_start_index
+        maxCount = len(sequence)
         # suchen nach den Iterationspunkten
         steps = self.__countModels(self.model)
         # Bei der Regel "F=F" bleibt über mehrere Iterationen das Ergebnis gleich
@@ -464,41 +378,17 @@ class App:
             iterations = 1
         # iteriere durch den letzten String
         self.coordinates = []
-        self.complete_l_string = self.model[-1]
-        for command in self.model[-1]:
+        self.turtle.create_empty_stack()
+        for counter,command in enumerate(sequence[turtle_start_index:]):
             if self.isstopped:
                 break
-            self.turtle.pd()
-            if command in ["F", "G", "R", "L","f","g","r","l"]:
-                if command in ["F", "G", "R", "L"]:
-                    self.turtle.pencolor("black")
-                if command in ["f","g","r","l"]:
-                    self.turtle.pencolor("blue")
-                start_coordinate = self.turtle.pos()
-                self.turtle.forward(seg_length)
-                end_coordinate = self.turtle.pos()
-                self.coordinates.append([start_coordinate, end_coordinate])
-            # elif command == "f":
-            #     self.turtle.pu()  # pen up - not drawing
-            #     self.turtle.forward(seg_length)
-            elif command == "+":
-                self.turtle.left(self.angle_value)
-            elif command == "-":
-                self.turtle.right(self.angle_value)
-            elif command == "[":
-                stack.append((self.turtle.position(), self.turtle.heading()))
-            elif command == "]":
-                self.turtle.pu()  # pen up - not drawing
-                position, heading = stack.pop()
-                self.turtle.goto(position)
-                self.turtle.setheading(heading)
-            if command not in ["F", "G", "R", "L","f","g","r","l"]:
-                self.coordinates.append([(0, 0), (0, 0)])
+            coordinates = self.turtle.do_command(command, seg_length, self.angle_value)
+            self.coordinates.append(coordinates)
             # einzelnen Bilder pro Iteration speichern
             if count in steps:
                 savename = self.__save_png()
                 outputfiles.append(savename)
-            percent = count / maxCount * 100
+            percent = counter / maxCount * 100
             title = "Lindenmayer-System ," + str(round(percent, 1)) + "% gezeichnet..."
             self.master.title(title)
             count = count + 1
@@ -507,10 +397,7 @@ class App:
         self.isstopped = False
         self.resetBtn['state'] = 'normal'
         self.cutBtn['state'] = 'normal'
-        if self.cutted:
-            self.resetcutBtn['state'] = 'normal'
-    # public funktionen - End
-
+        self.last_position_turtle = self.turtle.pos()
 
 if __name__ == "__main__":
     # Standart-Fenster erzeugen
