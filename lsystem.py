@@ -19,6 +19,7 @@ from PIL import Image
 import os
 from utils import splitRule, derivation
 from utils_cutting import *
+import turtle
 # Größe des Fensters
 winHeight = 480
 winWidth = 600
@@ -91,12 +92,16 @@ class App:
         # Speicherort der exportierten Bilder
         self.output = {}
 
-        # Erstellen der Turtle
+        # Erstellen der Turtles
         self.screen = turtle.TurtleScreen(self.drawframe)
+        #self.screen.delay(0)
+
         self.turtle = Lturtle(winHeight= winHeight,canvas=self.screen)
+
 
         self.cut_line_turtle = turtle.RawTurtle(self.screen)
         self.cut_line_turtle.hideturtle()
+
         # beinhaltet das aktuelle Bild (wenn geladen) - Initialisieren
         self.loaded_img = None
         self.loaded_bmp = None
@@ -131,13 +136,15 @@ class App:
         self.isstopped = True
         self.screen.clear()
         self.turtle.reset_turtle(winHeight)
+        self.coordinates = []
+        self.turtle_directions = []
         self.itera_cbox['values'] = [' ']
         self.itera_cbox.current(0)
         self.itera_cbox['state'] = 'disabled'
         self.resetBtn['state'] = 'disabled'
         self.cutBtn['state'] = 'disabled'
         self.cutted = False
-        for f in os.listdir("/images"):
+        for f in os.listdir("images"):
             try:
                 os.remove(f)
             except OSError as e:
@@ -172,8 +179,6 @@ class App:
             self.__create_cutted_string()
             self.isstopped = True
             #self.screen.clear()
-            self.turtle.goto(self.last_position_turtle)
-
             if not self.isdrawing:
                 self.isdrawing = True
                 self.draw_after_cut()
@@ -234,9 +239,12 @@ class App:
         """
 
         start_index,end_index = gets_start_end_to_cut(self.cutting_index,self.complete_l_string)
-        self.cutted_branch_index= start_index
-        self.cutted_string = self.complete_l_string[:start_index+1] + self.regrow_axiom.get().lower()+self.complete_l_string[end_index:]
-        self.cutted= True
+        self.cutted_branch_index= start_index+1
+        self.coordinates = self.coordinates[:start_index+1] + self.coordinates[end_index:]
+        self.cutted_string = self.complete_l_string[:start_index+1] + self.complete_l_string[end_index:]
+
+
+
 
 
     def changeItemIndex(self, event):
@@ -316,7 +324,7 @@ class App:
 
     def __save_png(self):
         """Speichert das gezeichnete Bild in schwarz-weiß"""
-        savename = "Output_LS_" + datetime.today().strftime('%Y-%m-%d_%H-%M-%S-%f') + extension
+        savename = "images/Output_LS_" + datetime.today().strftime('%Y-%m-%d_%H-%M-%S-%f') + extension
         ps = self.drawframe.postscript(colormode='mono', pagewidth=winWidth - 1, pageheight=winHeight - 1)
         img = Image.open(io.BytesIO(ps.encode('utf-8'))).convert(mode='1')
         img.save(savename)
@@ -351,25 +359,40 @@ class App:
         self.model = [axiom]
         self.model = derivation(self.model, iterations, self.rules)
         self.complete_l_string = self.model[-1]
-        self.__evaluate_sequence_to_draw(self.complete_l_string,iterations)
+        self.turtle.create_empty_stack()
+        self.turtle.setheading(alpha_zero)  # Richtung des Turtles initialisieren
+        self.coordinates= self.__evaluate_sequence_to_draw(self.complete_l_string,iterations)
+        self.screen.update()
+        self.old_iterations =iterations
+        self.resetBtn['state'] = 'normal'
+        self.cutBtn['state'] = 'normal'
     # public funktionen - End
     def draw_after_cut(self):
+        self.itera_cbox["state"] = "disabled"
         self.isstopped = False
         self.regrow_rules = splitRule(self.regrow_rule.get().lower())
         iterations = int(self.regrow_iterations.get())
-        self.model.append(self.cutted_string)
-        regrow_model = derivation(self.regrow_axiom.get().lower(), iterations, self.regrow_rules)
+        self.model[-1]=self.cutted_string
+        regrow_model = derivation([self.regrow_axiom.get().lower()], iterations, self.regrow_rules)
+
         self.model = derivation(self.model, iterations, self.rules)
-        self.model[-1] = self.model[-1][:self.cutted_branch_index] + regrow_model + self.model[-1][self.cutted_branch_index:]
-        self.complete_l_string = self.model[-1]
-        self.__evaluate_sequence_to_draw(self.complete_l_string,iterations)
-    def __evaluate_sequence_to_draw(self,sequence:str,iterations,turtle_start_index:int=0):
-        self.turtle.speed(0)  # (0 = am schnellsten)
-        self.turtle.setheading(alpha_zero)  # Richtung des Turtles initialisieren
+        self.__insert_regrow_model_into_model(regrow_model)
+        self.__evaluate_sequence_to_draw(self.model[-1], iterations + self.old_iterations)
+        self.screen.update()
+        # self.complete_l_string = self.model[-1]
+        self.resetBtn['state'] = 'normal'
+        self.cutBtn['state'] = 'disabled'
+
+    def __insert_regrow_model_into_model(self,regrow_model):
+        for counter,regrow in enumerate(regrow_model):
+            old_model = self.model[self.old_iterations+counter]
+            old_model = old_model[:self.cutted_branch_index] + regrow + old_model[self.cutted_branch_index:]
+            self.model[self.old_iterations + counter] = old_model
+    def __evaluate_sequence_to_draw(self,sequence:str,iterations):
+        self.screen.tracer(0, 0)
         # speichert die Dateinamen
         outputfiles = []
         # Zähler für Prozentanzeige
-        count = turtle_start_index
         maxCount = len(sequence)
         # suchen nach den Iterationspunkten
         steps = self.__countModels(self.model)
@@ -377,27 +400,23 @@ class App:
         if max(steps) == min(steps):
             iterations = 1
         # iteriere durch den letzten String
-        self.coordinates = []
-        self.turtle.create_empty_stack()
-        for counter,command in enumerate(sequence[turtle_start_index:]):
+        coordinates = []
+        for count,command in enumerate(sequence):
             if self.isstopped:
                 break
-            coordinates = self.turtle.do_command(command, seg_length, self.angle_value)
-            self.coordinates.append(coordinates)
+            coordinates_turtle= self.turtle.do_command(command, seg_length, self.angle_value)
+            coordinates.append(coordinates_turtle)
             # einzelnen Bilder pro Iteration speichern
             if count in steps:
                 savename = self.__save_png()
                 outputfiles.append(savename)
-            percent = counter / maxCount * 100
+            percent = count/ maxCount * 100
             title = "Lindenmayer-System ," + str(round(percent, 1)) + "% gezeichnet..."
             self.master.title(title)
-            count = count + 1
         self.master.title("Lindenmayer-System")
         self.__fill_combobox(iterations, outputfiles)
         self.isstopped = False
-        self.resetBtn['state'] = 'normal'
-        self.cutBtn['state'] = 'normal'
-        self.last_position_turtle = self.turtle.pos()
+        return coordinates
 
 if __name__ == "__main__":
     # Standart-Fenster erzeugen

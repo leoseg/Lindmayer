@@ -1,3 +1,4 @@
+import turtle
 from turtle import RawTurtle
 from typing import List
 
@@ -10,6 +11,8 @@ class Lturtle(RawTurtle):
         self.penup()
         self.goto(0, -winHeight / 2)
         self.pendown()
+        self.speed(0)
+
 
 
     def reset_turtle(self,winHeight):
@@ -24,7 +27,7 @@ class Lturtle(RawTurtle):
 
     def do_command(self,command:str,seg_length,angle_value)-> List:
         self.pd()
-        coordinates = [(0, 0), (0, 0)]
+        coordinates = [(0, 0),(0,0)]
         if command in ["F", "G", "R", "L", "f", "g", "r", "l"]:
             if command in ["F", "G", "R", "L"]:
                 self.pencolor("black")
