@@ -4,11 +4,23 @@ from shapely.geometry import LineString
 
 
 def calc_branch_index_cuted_by_line(coordinates_list, cut_line):
-    for count, coordinates in enumerate(coordinates_list):
+
+     for count, coordinates in enumerate(coordinates_list):
         if check_segments_are_crossing(cut_line, coordinates):
             return count
-    return 0
+     return 0
 
+
+def check_if_tribe_cutted(self,string,cutting_index):
+     brackets_counter = 0
+     for c in reversed(string[:cutting_index]):
+         if c == "[": brackets_counter = brackets_counter +1
+         if c == "]": brackets_counter = brackets_counter -1
+
+     if (brackets_counter == 0):
+        return True
+     else:
+        return False
 
 
 def gets_start_end_to_cut(cutting_index: int, complete_l_string) -> Tuple[int, int]:

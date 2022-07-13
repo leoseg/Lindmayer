@@ -1,7 +1,8 @@
 import turtle
 from turtle import RawTurtle
 from typing import List
-
+seg_length = 10
+alpha_zero = 90
 class Lturtle(RawTurtle):
 
     def __init__(self, winHeight,*args, **kwargs):
@@ -21,11 +22,12 @@ class Lturtle(RawTurtle):
         self.penup()
         self.goto(0, -winHeight / 2)
         self.pendown()
+        self.setheading(alpha_zero)
     def create_empty_stack(self):
         self.stack = []
 
 
-    def do_command(self,command:str,seg_length,angle_value)-> List:
+    def do_command(self,command:str,angle_value)-> List:
         self.pd()
         coordinates = [(0, 0),(0,0)]
         if command in ["F", "G", "R", "L", "f", "g", "r", "l"]:
