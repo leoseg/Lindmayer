@@ -1,5 +1,5 @@
 from typing import Tuple, List
-
+import re
 from shapely.geometry import LineString
 
 
@@ -11,7 +11,7 @@ def calc_branch_index_cuted_by_line(coordinates_list, cut_line):
      return 0
 
 
-def check_if_tribe_cutted(self,string,cutting_index):
+def check_if_tribe_cutted(string,cutting_index):
      brackets_counter = 0
      for c in reversed(string[:cutting_index]):
          if c == "[": brackets_counter = brackets_counter +1
@@ -32,16 +32,44 @@ def gets_start_end_to_cut(cutting_index: int, complete_l_string) -> Tuple[int, i
     """
     next = "!"
     start_index = cutting_index
-    while (next != "["):
+
+    while (next != "[" ):
         start_index = start_index - 1
         next = complete_l_string[start_index]
+        if next == "]":
+            while complete_l_string[start_index] not in ["F", "G", "R", "L"]:
+                start_index +=1
+            break
+
+
 
     end_index = cutting_index
-    while (next != "]"):
+    bracket_counter = 0
+    branch_in_branch = 1
+    next= "!"
+    while (next != "]" or bracket_counter > 0):
         end_index += 1
+        if next == "[" :
+            bracket_counter += 1
+            branch_in_branch = 0
+        if next == "]" : bracket_counter -= 1
         next = complete_l_string[end_index]
-    return start_index, end_index
 
+    return start_index, end_index + branch_in_branch
+
+def get_direction_of_cutted_branch(string:str, index):
+    """
+    Gets the direction of the branch, if a closed bracket appears before
+    finding anything there is no direction just straightforward
+    :param string: string to find direction
+    :param index: start search from this index on backwards
+    :return: string for direction
+    """
+    for char in reversed(string[:index]):
+        if char == "]":
+            return ""
+        if char in ["+","-"]:
+            return char
 
 def check_segments_are_crossing(first_segment: List[Tuple[float, float]],
                                   second_segment: List[Tuple[float, float]]) -> bool:

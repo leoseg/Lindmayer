@@ -1,7 +1,7 @@
 import turtle
 from turtle import RawTurtle
 from typing import List
-seg_length = 10
+seg_length = 15
 alpha_zero = 90
 class Lturtle(RawTurtle):
 

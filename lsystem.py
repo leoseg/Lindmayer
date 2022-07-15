@@ -162,6 +162,9 @@ class App:
             self.cut_line_turtle.goto(x, y)
             self.cut_line.append((x,y))
             self.cutting_index = calc_branch_index_cuted_by_line(self.coordinates,self.cut_line)
+            self.cut_line_turtle.penup()
+            self.mark_cutted_branch()
+
             if self.cutting_index != 0:
                 self.cut_window()
             else:
@@ -169,6 +172,13 @@ class App:
                 self.click_num = 0
                 self.cut_line_turtle.clear()
 
+    def mark_cutted_branch(self):
+        self.cut_line_turtle.color("red")
+        self.cut_line_turtle.goto(self.coordinates[self.cutting_index][0])
+        self.cut_line_turtle.pendown()
+        self.cut_line_turtle.goto(self.coordinates[self.cutting_index][1])
+        self.cut_line_turtle.penup()
+        self.cut_line_turtle.color("black")
     def pressconfirm(self):
         ruleformatOk = self.__checkRuleFormat(self.regrow_rule.get())
         axiomformatOk = self.__checkAxiomFormat(self.regrow_axiom.get())
@@ -241,14 +251,16 @@ class App:
         """
         self.tribe_cutted = check_if_tribe_cutted(self.complete_l_string,self.cutting_index)
         if self.tribe_cutted:
-            start_index = self.complete_l_string[:self.complete_l_string].rindex("]")
+            try:
+                start_index = self.complete_l_string[:self.cutting_index].rindex("]")+1
+            except ValueError:
+                start_index = 1
             self.coordinates = self.coordinates[:start_index]
             self.cutted_branch_direction = ""
             self.cutted_string = self.complete_l_string[:start_index]
         else:
             start_index,end_index = gets_start_end_to_cut(self.cutting_index,self.complete_l_string)
             self.coordinates = self.coordinates[:start_index] + self.coordinates[end_index + 1:]
-            self.cutted_branch_direction = self.complete_l_string[start_index + 1]
             self.cutted_string = self.complete_l_string[:start_index] + self.complete_l_string[end_index + 1:]
         self.cutted_branch_index= start_index
 
@@ -385,14 +397,13 @@ class App:
         self.isstopped = False
         self.regrow_rules = splitRule(self.regrow_rule.get().lower())
         iterations = int(self.regrow_iterations.get())
-        self.model[-1]=self.cutted_string
+        #self.model[-1]=self.cutted_string
         regrow_model = derivation([self.regrow_axiom.get().lower()], iterations, self.regrow_rules)
 
         self.model = derivation(self.model, iterations, self.rules)
         self.__insert_regrow_model_into_model(regrow_model)
         self.__evaluate_sequence_to_draw(self.model[-1], iterations + self.old_iterations)
 
-        # self.complete_l_string = self.model[-1]
         self.resetBtn['state'] = 'normal'
         self.cutBtn['state'] = 'disabled'
 
@@ -402,18 +413,20 @@ class App:
             if self.tribe_cutted:
                 old_model = old_model[:self.cutted_branch_index]+regrow
             else:
-                old_model = old_model[:self.cutted_branch_index] + "["+self.cutted_branch_direction +regrow+"]" + old_model[self.cutted_branch_index:]
-                regrow_len = len(regrow) +3
-                old_model = old_model[:self.cutted_branch_index+regrow_len] + old_model[self.__find_branch_end_index_to_replace(old_model,regrow_len):]
+                start_index , end_index = gets_start_end_to_cut(self.cutting_index,old_model)
+                # old_model = old_model[:self.cutted_branch_index] + "["+self.cutted_branch_direction +regrow+"]" + old_model[self.cutted_branch_index:]
+                # regrow_len = len(regrow) +3
+                # old_model = old_model[:self.cutted_branch_index+regrow_len] + old_model[self.__find_branch_end_index_to_replace(old_model,regrow_len):]
+                old_model = old_model[:start_index] + "["+regrow+"]" + old_model[end_index:]
             self.model[self.old_iterations + counter] = old_model
 
     def __find_branch_end_index_to_replace(self,string,len_regrow_model):
         bracket_counter = 1
         for counter,char in enumerate(string[self.cutted_branch_index+len_regrow_model+1:]):
             if char == "[":
-                bracket_counter  = bracket_counter +1
+                bracket_counter = bracket_counter + 1
             if char == "]":
-                bracket_counter = bracket_counter -1
+                bracket_counter = bracket_counter - 1
             if bracket_counter == 0:
                 return counter+self.cutted_branch_index+len_regrow_model+2
         return self.cutted_branch_index+len_regrow_model
