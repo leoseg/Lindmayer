@@ -1,12 +1,24 @@
 def rule(sequence, rules):
-    """ Sucht in der gegebenen <sequence> nach der entsprechend zu ersetztenden Regel """
+    """
+    Searches in the given sequence for chars at which the rules shoud be applied, if found apploes rule
+    :param sequence: sequence to search in
+    :param rules: set of rules
+    :return: the new sequence with applied rules
+    """
+    """ Searches in given <sequence> for the rule to replace """
     if sequence in rules:
         return rules[sequence]
     return sequence
 
 
 def derivation(derived, steps, rules):
-    """ Erzeugt mit der Regel für jeden Iterationsschritt einen Sequenz an Zeichenbefehlen """
+    """
+    For each step applies rule to the sequence appends them to the sequence before and appends this to the list of derived,
+    :param derived: should be a list which at least one element where to start the derivation of rules
+    :param steps: how much times the derivations should be applied
+    :param rules: rules to use for derivation
+    :return: list of derivations
+    """
     for _ in range(steps):
         next_seq = derived[-1]
         # Für jeden <char> in <next_seq> prüfe, ob die Regel angewendet werden muss
@@ -16,6 +28,10 @@ def derivation(derived, steps, rules):
 
 
 def splitRule(input):
-    """input muss "=" enthalten, z.B. "F=FF+[+F-F-F]-[-F+F+F]". F ist der Pattern der mit FF+[+F-F-F]-[-F+F+F] ersetzt wird"""
+    """
+    Splits rule string by searching for '=' and creating dictionary with key left from it and value right from it
+    :param input: string input to get rule from
+    :return: dictionary with rule
+    """
     x = input.split('=', 1)
     return {x[0]: x[1]}

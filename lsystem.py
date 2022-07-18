@@ -28,8 +28,15 @@ extension = '.png'
 
 
 class App:
+    """
+    Main class which creates the app
+    """
     # Konstruktor
     def __init__(self, master: tk.Tk):
+        """
+        Initialization which creates all elements of the gui and initalizes turtles
+        :param master: root tk object
+        """
         self.master = master
 
         # Parameter from GUI
@@ -100,6 +107,7 @@ class App:
         self.turtle = Lturtle(canvas=self.screen)
         self.screen.delay(0)
 
+
         self.cut_line_turtle = Lturtle(canvas=self.screen)
 
         self.redraw_turtle = Lturtle(canvas=self.screen)
@@ -114,7 +122,10 @@ class App:
         self.iterationEdit.insert(0,2)
     # funktion für GUI-Elemente
     def pressgrow(self):
-        """Command des Grow-Buttons"""
+        """
+        Command of the grow button,checks the given rules if they ok draws the lsystem
+        :return:
+        """
         candraw = False
         # prüfen, ob die Eingabefelder richtig befüllt sind
         axiomOk = self.__checkAxiomFormat(self.axiomEdit.get())
@@ -133,7 +144,10 @@ class App:
 
 
     def pressreset(self):
-        """Command des Reset-Buttons"""
+        """
+        Command of the reset button clears all turtles and screen
+        :return:
+        """
         self.isstopped = True
         self.screen.clear()
         self.turtle.reset_turtle()
@@ -146,11 +160,6 @@ class App:
         self.resetBtn['state'] = 'disabled'
         self.cutBtn['state'] = 'disabled'
 
-        for f in os.listdir("images"):
-            try:
-                os.remove("images/"+f)
-            except OSError as e:
-                print("Error: %s : %s" % (f, e.strerror))
 
     def click_fun(self, x, y):
         """
@@ -207,13 +216,21 @@ class App:
 
 
     def presscancel(self):
+        """
+        Gets called if cancel button of cut window is clicked, destroys window and draws old uncutted tree
+        :return:
+        """
         self.popup.destroy()
         self.click = 0
         self.cut_line_turtle.clear()
         self.redraw_turtle.reset_turtle()
-        self.turtle.draw_sequence(self.complete_l_string,self.angle_value)
+        self.turtle.draw_sequence(self.model[self.choosen_iteration],self.angle_value)
 
     def cut_window(self):
+        """
+        Functions that creates the cut window
+        :return:
+        """
         # Speicherort der Regeln
         self.popup = tk.Toplevel(self.master)
         self.regrow_entry = ttk.Entry(self.popup, width=41, textvariable=self.regrow_rule)
@@ -248,7 +265,10 @@ class App:
 
 
     def presscut(self):
-        """Command des Cut-Buttons"""
+        """
+        If cut button is clicked sets function for click on screen
+        :return:
+        """
         self.isstopped = True
         self.cut_line = [] #np.empty([2, 2])
         self.click_num = 0
@@ -263,6 +283,7 @@ class App:
         :param coordinates_cutting_line: start and end coordinates of the cutting line
         :return:
         """
+
         self.tribe_cutted = check_if_tribe_cutted(self.complete_l_string,self.cutting_index)
         if self.tribe_cutted:
             self.coordinates = self.coordinates[:self.cutting_index]
@@ -275,26 +296,29 @@ class App:
 
 
     def changeItemIndex(self, event):
-        """Lädt die Bild-Datei zu der jeweiligen Iteration"""
+        """
+        Loads the image file for the given iteration selected
+        :param event:
+        :return:
+        """
         # initialisieren
         self.turtle.reset_turtle()
+        self.redraw_turtle.reset_turtle()
+        self.cut_line_turtle.reset_turtle()
         self.loaded_bmp = None
         self.loaded_img = None
-        filename = self.output[self.itera_cbox.get()]
-        # prüfen ob ein Bild geladen wurde
-        try:
-            self.loaded_img = tk.PhotoImage(file=filename)
-        except BaseException:
-            showerror('File not found', 'File "' + filename + '" does not exist.')
-            return
-        self.drawframe.create_image((0, 0), image=self.loaded_img)
-        self.drawframe.grid(row=0, column=0, columnspan=5)
-        # funktion für GUI-Elemente - Ende
+        m = re.search(r"\d", self.itera_cbox.get())
+        self.choosen_iteration = int(self.itera_cbox.get()[m.start()])
 
-        # private funktionen werden mit mit "__" deklariert
-
+        sequence = self.model[self.choosen_iteration]
+        self.coordinates = self.turtle.draw_sequence(sequence,self.angle_value)
+        self.complete_l_string = sequence
     def __checkAxiomFormat(self, axiomStr):
-        """Prüft ob der axiomStr richtig ist"""
+        """
+        Checks if the axiom string has the correct format
+        :param axiomStr: str with axiom
+        :return: true if correct
+        """
         if len(axiomStr) == 0:
             showerror('Missing Entry', 'The "Axiom" must not be empty.')
             return False
@@ -305,7 +329,11 @@ class App:
             return True
 
     def __checkAngleFormat(self, angleStr):
-        """Fängt den Typenfehler ab und gibt entsprechend True zurück wenn kein Fehler kam"""
+        """
+        Checks if the angle string has the correct format
+        :param angleStr: str with angle
+        :return: true if correct
+        """
         try:
             if not angleStr.count('.') == 1:
                 showerror('Wrong Format', 'In "Angle" must be a number with "." (dot). Do not use "," (comma).')
@@ -320,7 +348,11 @@ class App:
             return False
 
     def __checkIterationFormat(self, iterationStr):
-        """Fängt den alles was keine potive Ganzzahl ist ab und gibt entsprechend True zurück wenn kein Fehler kam"""
+        """
+        Checks if the iteration string has the correct format
+        :param iterationStr: str with iteration number
+        :return: true if correct
+        """
         if not iterationStr.isnumeric():
             showerror('Wrong Format', '"Iteration" must be a positive number.')
             return False
@@ -328,7 +360,11 @@ class App:
             return True
 
     def __checkRuleFormat(self, ruleStr):
-        """Fängt Formatierungsfehler innerhalb des ruleStr ab"""
+        """
+        Checks if the rule string has the correct format
+        :param ruleStr: str with rule
+        :return: true if correct
+        """
         if ruleStr.count('=') > 1:
             showerror('Wrong Format', '"Rule" must contain only one "=", e.g. "F=FF+[+F-F-F]-[-F+F+F]".')
             return False
@@ -342,23 +378,24 @@ class App:
             return True
 
     def __countModels(self, model):
-        """Sammelt die Stringlängen der einzelnen Iterationen"""
+        """
+        For each model gets the length and saves it to an list
+        :param model: list with all models
+        :return: list with lengths of models
+        """
         posArr = []
         modelCount = len(model)
         for step in range(1, modelCount):
             posArr.append(len(model[step]) - 1)
         return posArr
 
-    def __save_png(self):
-        """Speichert das gezeichnete Bild in schwarz-weiß"""
-        savename = "images/Output_LS_" + datetime.today().strftime('%Y-%m-%d_%H-%M-%S-%f') + extension
-        ps = self.drawframe.postscript(colormode='mono', pagewidth=winWidth - 1, pageheight=winHeight - 1)
-        img = Image.open(io.BytesIO(ps.encode('utf-8'))).convert(mode='1')
-        img.save(savename)
-        return savename
 
-    def __fill_combobox(self, maxiteration, files):
-        """Füllt die ComboBox mit Daten zum auswählen der Iterationsschritte"""
+    def __fill_combobox(self, maxiteration):
+        """
+        Fills the selectbox with iterations
+        :param maxiteration: number of iterations
+        :return:
+        """
         self.output.clear()
         self.itera_cbox['state'] = 'readonly'
         self.itera_cbox['values'] = []
@@ -366,82 +403,104 @@ class App:
         for i in range(0, maxiteration):
             cbItems.append('Iteration ' + str(i + 1))
         self.itera_cbox['values'] = cbItems
-        for i in range(0, len(cbItems)):
-            self.output[cbItems[i]] = files[i]
-            # private funktionen - Ende
 
 
     def draw_l_system(self):
-        """ Zeichenroutine des L-Systems """
+        """
+        Draws the l-system
+        :return:
+        """
+
+        # gets user values (angel, rule,axiom)
         self.isstopped = False
         self.rules = splitRule(self.rule.get())
         axiom = self.axiom.get()
         iterations = int(self.iteration.get())
         self.angle_value = float(self.angle.get())
+
+        # derivates models
         self.model = [axiom]
         self.model = derivation(self.model, iterations, self.rules)
         self.complete_l_string = self.model[-1]
+
+        #initialize turtle
         self.turtle.create_empty_stack()
         self.turtle.reset_turtle()
-        self.coordinates= self.__evaluate_sequence_to_draw(self.complete_l_string,iterations)
+
+        #draw system and saves coodirnates
+        self.coordinates =self.__evaluate_sequence_to_draw(self.model[-1])
+        self.__fill_combobox(iterations)
         self.old_iterations =iterations
+
+        # enables buttons
         self.resetBtn['state'] = 'normal'
         self.cutBtn['state'] = 'normal'
+
+        self.choosen_iteration=len(self.model) -1
     # public funktionen - End
     def draw_after_cut(self):
+        """
+        Draws the l-system after the cut
+        :return:
+        """
+
+        # initialize turtle
         self.turtle.create_empty_stack()
         self.turtle.reset_turtle()
         self.itera_cbox["state"] = "disabled"
         self.isstopped = False
+
+        # derivates regrow models
         self.regrow_rules = splitRule(self.regrow_rule.get().lower())
         iterations = int(self.regrow_iterations.get())
         regrow_model = derivation([self.regrow_axiom.get().lower()], iterations, self.regrow_rules)
 
+        # derivates models
         self.model = derivation(self.model, iterations, self.rules)
         self.__insert_regrow_model_into_model(regrow_model)
+        #draws new system with cutted branch
         self.__evaluate_sequence_to_draw(self.model[-1], iterations + self.old_iterations)
+        self.__fill_combobox(iterations + self.old_iterations)
 
+        # enables buttons
         self.resetBtn['state'] = 'normal'
         self.cutBtn['state'] = 'disabled'
 
     def __insert_regrow_model_into_model(self,regrow_model):
+        """
+        Inserts the new regrow model into the models
+        :param regrow_model: list of regrow models
+        :return:
+        """
         for counter,regrow in enumerate(regrow_model):
             old_model = self.model[self.old_iterations+counter]
             if self.tribe_cutted:
-                old_model = old_model[:self.cutted_branch_index]+regrow
+                old_model = old_model[:self.cutting_index]+regrow
             else:
                 old_model = old_model[:self.cutting_index] +regrow+ old_model[self.end_index:]
             self.model[self.old_iterations + counter] = old_model
 
 
-    def __evaluate_sequence_to_draw(self,sequence:str,iterations):
-        self.screen.tracer(1,0)
-        # speichert die Dateinamen
-        outputfiles = []
-        # Zähler für Prozentanzeige
+    def __evaluate_sequence_to_draw(self,sequence:str):
+        """
+        Evalutes the sequence which should be drawn and changes title to percentage
+        :param sequence: sequence which should be drawn
+        :param iterations: number of iterations
+        :return:
+        """
+        self.screen.tracer(1,1)
+        # For counting percentage of drawing
         maxCount = len(sequence)
-        # suchen nach den Iterationspunkten
-        steps = self.__countModels(self.model)
-        # Bei der Regel "F=F" bleibt über mehrere Iterationen das Ergebnis gleich
-        if max(steps) == min(steps):
-            iterations = 1
-        # iteriere durch den letzten String
         coordinates = []
         for count,command in enumerate(sequence):
             if self.isstopped:
                 break
             coordinates_turtle= self.turtle.do_command(command, self.angle_value)
             coordinates.append(coordinates_turtle)
-            # einzelnen Bilder pro Iteration speichern
-            if count in steps:
-                savename = self.__save_png()
-                outputfiles.append(savename)
-                #self.screen.update()
             percent = count/ maxCount * 100
             title = "Lindenmayer-System ," + str(round(percent, 1)) + "% gezeichnet..."
             self.master.title(title)
         self.master.title("Lindenmayer-System")
-        self.__fill_combobox(iterations, outputfiles)
         self.isstopped = False
         return coordinates
 

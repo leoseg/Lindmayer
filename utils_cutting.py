@@ -4,62 +4,55 @@ from shapely.geometry import LineString
 
 
 def calc_branch_index_cuted_by_line(coordinates_list, cut_line):
-
-     for count, coordinates in enumerate(coordinates_list):
+    """
+    Calulcates which branch was cutted and returns the index, if no
+    index was cutted returns 0
+    :param coordinates_list: coordinates of all branches
+    :param cut_line: coordinates of cutting line
+    :return: index
+    """
+    for count, coordinates in enumerate(coordinates_list):
         if check_segments_are_crossing(cut_line, coordinates):
             return count
-     return 0
+    return 0
 
 
 def check_if_tribe_cutted(string,cutting_index):
-     brackets_counter = 0
-     for c in reversed(string[:cutting_index]):
+    """
+    Checks if the tribe was cutted
+    :param string: string of tree
+    :param cutting_index: index where tree was cutted
+    :return:
+    """
+    brackets_counter = 0
+    for c in reversed(string[:cutting_index]):
          if c == "[": brackets_counter = brackets_counter +1
          if c == "]": brackets_counter = brackets_counter -1
 
-     if (brackets_counter == 0):
+    if (brackets_counter == 0):
         return True
-     else:
+    else:
         return False
 
-
-def gets_start_end_to_cut(cutting_index: int, complete_l_string) -> Tuple[int, int]:
-    """
-    Loops trough string to find the indices of the corresponding end and start brackets between which the
-    string should be cutted
-    :param cutting_index: the index of the branch in the string which the cutting line intersected
-    :return: start and end index of '[' and ']' bracket
-    """
-    next = "!"
-    start_index = cutting_index
-
-    while (next != "[" ):
-        start_index = start_index - 1
-        next = complete_l_string[start_index]
-        if next == "]":
-            while complete_l_string[start_index] not in ["F", "G", "R", "L"]:
-                start_index +=1
-            break
-
-
-
-    end_index = cutting_index
-    bracket_counter = 0
-    next= "!"
-    while (next != "]" or bracket_counter > 0):
-        end_index += 1
-        if next == "[" : bracket_counter += 1
-        if next == "]" :
-            bracket_counter -= 1
-        next = complete_l_string[end_index]
-
-    return start_index, end_index +1
-
 def get_end_index(cutting_index: int, complete_l_string) -> int:
+    """
+    Gets index where cutted branch ends
+    :param cutting_index: index of branch cutted in string
+    :param complete_l_string: string of complete tree
+    :return:
+    """
     end_index = find_end_index_of_branch(complete_l_string[cutting_index],cutting_index,complete_l_string)
     return end_index
 
 def find_end_index_of_branch(char,index,string):
+    """
+    Recursive functions thats finds the next ']' and retunrs index,
+    if '[' is openend calls itself
+    :param char: char at index
+    :param index: index where to start
+    :param string: string to loop trough
+    :return: index of ']'
+    """
     next =char
     while (next != "]" ):
         index += 1

@@ -77,19 +77,25 @@ class Lturtle(RawTurtle):
             self.setheading(heading)
         return coordinates
 
-    def draw_sequence(self,string,angle_value):
+    def draw_sequence(self,string,angle_value,slowly= False):
         """
         Draws a given sequence instantly without storing the coordinates
         :param string: sequence to draw
         :param angle_value: value for turning left and right
-        :return:
+        :return: coordinates of drawn sequence
         """
         self.create_empty_stack()
         self.reset_turtle()
-        self.screen.tracer(0, 0)
+        if slowly:
+            self.screen.tracer(1,1)
+        else:
+            self.screen.tracer(0, 0)
+        coordinates = []
         for command in string:
-            self.do_command(command, angle_value)
+            coords = self.do_command(command, angle_value)
+            coordinates.append(coords)
         self.screen.update()
+        return coordinates
 
     def mark_branch_red(self,start_coordinates,end_coordinates):
         """
