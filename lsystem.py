@@ -97,12 +97,12 @@ class App:
         self.screen = turtle.TurtleScreen(self.drawframe)
         #self.screen.delay(0)
 
-        self.turtle = Lturtle(winHeight= winHeight,canvas=self.screen)
+        self.turtle = Lturtle(canvas=self.screen)
+        self.screen.delay(0)
 
+        self.cut_line_turtle = Lturtle(canvas=self.screen)
 
-        self.cut_line_turtle = turtle.RawTurtle(self.screen)
-        self.cut_line_turtle.hideturtle()
-
+        self.redraw_turtle = Lturtle(canvas=self.screen)
         # beinhaltet das aktuelle Bild (wenn geladen) - Initialisieren
         self.loaded_img = None
         self.loaded_bmp = None
@@ -136,7 +136,9 @@ class App:
         """Command des Reset-Buttons"""
         self.isstopped = True
         self.screen.clear()
-        self.turtle.reset_turtle(winHeight)
+        self.turtle.reset_turtle()
+        self.cut_line_turtle.reset_turtle()
+        self.redraw_turtle.reset_turtle()
         self.coordinates = []
         self.itera_cbox['values'] = [' ']
         self.itera_cbox.current(0)
@@ -151,42 +153,51 @@ class App:
                 print("Error: %s : %s" % (f, e.strerror))
 
     def click_fun(self, x, y):
+        """
+        Function that gets called when mouse is clicked, evaluates two clicks for drawing a cutting line
+        :param x: x coordinate of mouse
+        :param y: y coordiante of mouse
+        :return:
+        """
         self.click_num = self.click_num + 1
+        # gets first coordinate of mouse click
         if self.click_num == 1:
             self.cut_line_turtle.penup()
             self.cut_line_turtle.goto(x, y)
             self.cut_line.append((x,y))
 
+        #gets second coordinates, evaluate if a branch was hitted if yes cuttes the string and opens a window for
+        # inserting rules if no branch was hitted resets the click counter and shows an error
         if self.click_num == 2:
             self.cut_line_turtle.pendown()
             self.cut_line_turtle.goto(x, y)
             self.cut_line.append((x,y))
             self.cutting_index = calc_branch_index_cuted_by_line(self.coordinates,self.cut_line)
-            self.cut_line_turtle.penup()
-            self.mark_cutted_branch()
 
             if self.cutting_index != 0:
+                self.cut_line_turtle.mark_branch_red(self.coordinates[self.cutting_index][0],self.coordinates[self.cutting_index][1])
+                self.__create_cutted_string()
+                self.turtle.reset_turtle()
+                self.redraw_turtle.draw_sequence(self.cutted_string, self.angle_value)
                 self.cut_window()
             else:
                 showerror("Error","No branch hitted with cutting line, Try again")
                 self.click_num = 0
                 self.cut_line_turtle.clear()
 
-    def mark_cutted_branch(self):
-        self.cut_line_turtle.color("red")
-        self.cut_line_turtle.goto(self.coordinates[self.cutting_index][0])
-        self.cut_line_turtle.pendown()
-        self.cut_line_turtle.goto(self.coordinates[self.cutting_index][1])
-        self.cut_line_turtle.penup()
-        self.cut_line_turtle.color("black")
     def pressconfirm(self):
+        """
+        Function if the confirm button in the cut window was pressed checks rules and if okay starts drawing the
+        new tree
+        :return:
+        """
         ruleformatOk = self.__checkRuleFormat(self.regrow_rule.get())
         axiomformatOk = self.__checkAxiomFormat(self.regrow_axiom.get())
         iterationformatOk = self.__checkIterationFormat(self.regrow_iterations.get())
         if ruleformatOk and axiomformatOk and iterationformatOk:
             self.popup.destroy()
             self.click = 0
-            self.__create_cutted_string()
+
             self.isstopped = True
             #self.screen.clear()
             if not self.isdrawing:
@@ -199,6 +210,9 @@ class App:
         self.popup.destroy()
         self.click = 0
         self.cut_line_turtle.clear()
+        self.redraw_turtle.reset_turtle()
+        self.turtle.draw_sequence(self.complete_l_string,self.angle_value)
+
     def cut_window(self):
         # Speicherort der Regeln
         self.popup = tk.Toplevel(self.master)
@@ -229,7 +243,7 @@ class App:
         if self.firstcut:
             self.regrow_axiom_entry.insert(0,"F")
             self.regrow_entry.insert(0,"F=FF-[-F+F]+[-F+F]")
-            self.regrow_iterations_entry.insert(0,2)
+            self.regrow_iterations_entry.insert(0,1)
             self.firstcut = False
 
 
@@ -245,36 +259,25 @@ class App:
     def __create_cutted_string(self):
         """
         Cuts the plant at the nearest branch to the intersection point of the cutting line by removing the
-        corresponding chars in the string
+        corresponding chars in the string and coordinates
         :param coordinates_cutting_line: start and end coordinates of the cutting line
         :return:
         """
         self.tribe_cutted = check_if_tribe_cutted(self.complete_l_string,self.cutting_index)
         if self.tribe_cutted:
-            try:
-                start_index = self.complete_l_string[:self.cutting_index].rindex("]")+1
-            except ValueError:
-                start_index = 1
-            self.coordinates = self.coordinates[:start_index]
+            self.coordinates = self.coordinates[:self.cutting_index]
             self.cutted_branch_direction = ""
-            self.cutted_string = self.complete_l_string[:start_index]
+            self.cutted_string = self.complete_l_string[:self.cutting_index]
         else:
-            start_index,end_index = gets_start_end_to_cut(self.cutting_index,self.complete_l_string)
-            self.coordinates = self.coordinates[:start_index] + self.coordinates[end_index + 1:]
-            self.cutted_string = self.complete_l_string[:start_index] + self.complete_l_string[end_index + 1:]
-        self.cutted_branch_index= start_index
-
-
-
-
-
-
+            self.end_index = get_end_index(self.cutting_index,self.complete_l_string)
+            self.coordinates = self.coordinates[:self.cutting_index] + self.coordinates[self.end_index :]
+            self.cutted_string = self.complete_l_string[:self.cutting_index] + self.complete_l_string[self.end_index :]
 
 
     def changeItemIndex(self, event):
         """Lädt die Bild-Datei zu der jeweiligen Iteration"""
         # initialisieren
-        self.turtle.reset_turtle(winHeight)
+        self.turtle.reset_turtle()
         self.loaded_bmp = None
         self.loaded_img = None
         filename = self.output[self.itera_cbox.get()]
@@ -367,11 +370,6 @@ class App:
             self.output[cbItems[i]] = files[i]
             # private funktionen - Ende
 
-    # public funktionen
-
-    def draw_regrow_system(self):
-        self.isstopped = False
-
 
     def draw_l_system(self):
         """ Zeichenroutine des L-Systems """
@@ -384,7 +382,7 @@ class App:
         self.model = derivation(self.model, iterations, self.rules)
         self.complete_l_string = self.model[-1]
         self.turtle.create_empty_stack()
-        self.turtle.reset_turtle(winHeight)
+        self.turtle.reset_turtle()
         self.coordinates= self.__evaluate_sequence_to_draw(self.complete_l_string,iterations)
         self.old_iterations =iterations
         self.resetBtn['state'] = 'normal'
@@ -392,12 +390,11 @@ class App:
     # public funktionen - End
     def draw_after_cut(self):
         self.turtle.create_empty_stack()
-        self.turtle.reset_turtle(winHeight)
+        self.turtle.reset_turtle()
         self.itera_cbox["state"] = "disabled"
         self.isstopped = False
         self.regrow_rules = splitRule(self.regrow_rule.get().lower())
         iterations = int(self.regrow_iterations.get())
-        #self.model[-1]=self.cutted_string
         regrow_model = derivation([self.regrow_axiom.get().lower()], iterations, self.regrow_rules)
 
         self.model = derivation(self.model, iterations, self.rules)
@@ -413,25 +410,12 @@ class App:
             if self.tribe_cutted:
                 old_model = old_model[:self.cutted_branch_index]+regrow
             else:
-                start_index , end_index = gets_start_end_to_cut(self.cutting_index,old_model)
-                # old_model = old_model[:self.cutted_branch_index] + "["+self.cutted_branch_direction +regrow+"]" + old_model[self.cutted_branch_index:]
-                # regrow_len = len(regrow) +3
-                # old_model = old_model[:self.cutted_branch_index+regrow_len] + old_model[self.__find_branch_end_index_to_replace(old_model,regrow_len):]
-                old_model = old_model[:start_index] + "["+regrow+"]" + old_model[end_index:]
+                old_model = old_model[:self.cutting_index] +regrow+ old_model[self.end_index:]
             self.model[self.old_iterations + counter] = old_model
 
-    def __find_branch_end_index_to_replace(self,string,len_regrow_model):
-        bracket_counter = 1
-        for counter,char in enumerate(string[self.cutted_branch_index+len_regrow_model+1:]):
-            if char == "[":
-                bracket_counter = bracket_counter + 1
-            if char == "]":
-                bracket_counter = bracket_counter - 1
-            if bracket_counter == 0:
-                return counter+self.cutted_branch_index+len_regrow_model+2
-        return self.cutted_branch_index+len_regrow_model
+
     def __evaluate_sequence_to_draw(self,sequence:str,iterations):
-        self.screen.tracer(0, 0)
+        self.screen.tracer(1,0)
         # speichert die Dateinamen
         outputfiles = []
         # Zähler für Prozentanzeige
@@ -452,7 +436,7 @@ class App:
             if count in steps:
                 savename = self.__save_png()
                 outputfiles.append(savename)
-                self.screen.update()
+                #self.screen.update()
             percent = count/ maxCount * 100
             title = "Lindenmayer-System ," + str(round(percent, 1)) + "% gezeichnet..."
             self.master.title(title)

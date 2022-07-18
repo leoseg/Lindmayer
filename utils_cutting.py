@@ -45,18 +45,28 @@ def gets_start_end_to_cut(cutting_index: int, complete_l_string) -> Tuple[int, i
 
     end_index = cutting_index
     bracket_counter = 0
-    branch_in_branch = 1
     next= "!"
     while (next != "]" or bracket_counter > 0):
         end_index += 1
-        if next == "[" :
-            bracket_counter += 1
-            branch_in_branch = 0
-        if next == "]" : bracket_counter -= 1
+        if next == "[" : bracket_counter += 1
+        if next == "]" :
+            bracket_counter -= 1
         next = complete_l_string[end_index]
 
-    return start_index, end_index + branch_in_branch
+    return start_index, end_index +1
 
+def get_end_index(cutting_index: int, complete_l_string) -> int:
+    end_index = find_end_index_of_branch(complete_l_string[cutting_index],cutting_index,complete_l_string)
+    return end_index
+
+def find_end_index_of_branch(char,index,string):
+    next =char
+    while (next != "]" ):
+        index += 1
+        next = string[index]
+        if next == "[":
+          index = find_end_index_of_branch(next,index,string)
+    return index
 def get_direction_of_cutted_branch(string:str, index):
     """
     Gets the direction of the branch, if a closed bracket appears before
