@@ -10,7 +10,7 @@ class Lturtle(RawTurtle):
     Extra class for all the turtle functions in the l-system simulation
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self,master, *args, **kwargs):
         """
         Init the lturtle by clearing everythin, going to the bottom of the windo and hiding it also sets
         maximum speed
@@ -18,12 +18,14 @@ class Lturtle(RawTurtle):
         :param kwargs:
         """
         super(Lturtle, self).__init__(*args, **kwargs)
+        self.master = master
         self.clear()
         self.hideturtle()
         self.penup()
         self.goto(0, -winHeight / 2)
         self.pendown()
         self.speed(0)
+        self.isstopped = True
 
 
 
@@ -32,6 +34,7 @@ class Lturtle(RawTurtle):
         Resets the turtle, clears everything and going to start position and start direction
         :return:
         """
+        self.isstopped = True
         self.clear()
         self.hideturtle()
         self.penup()
@@ -77,24 +80,35 @@ class Lturtle(RawTurtle):
             self.setheading(heading)
         return coordinates
 
-    def draw_sequence(self,string,angle_value,slowly= False):
+    def draw_sequence(self,string,angle_value,slowly= False,percentage= False):
         """
         Draws a given sequence instantly without storing the coordinates
         :param string: sequence to draw
         :param angle_value: value for turning left and right
+        :param slowly: if true draws the sequence slowly
+        :param percentage: if true shows percentage of drawn sequenc
         :return: coordinates of drawn sequence
         """
+        maxCount = len(string)
         self.create_empty_stack()
         self.reset_turtle()
+        self.isstopped = False
         if slowly:
             self.screen.tracer(1,1)
         else:
             self.screen.tracer(0, 0)
         coordinates = []
-        for command in string:
+        for count,command in enumerate(string):
+            if self.isstopped:
+                break
             coords = self.do_command(command, angle_value)
+            if percentage:
+                percent = count/ maxCount * 100
+                title = "Lindenmayer-System ," + str(round(percent, 1)) + "% gezeichnet..."
+                self.master.title(title)
             coordinates.append(coords)
         self.screen.update()
+        self.isstopped = False
         return coordinates
 
     def mark_branch_red(self,start_coordinates,end_coordinates):

@@ -104,13 +104,13 @@ class App:
         self.screen = turtle.TurtleScreen(self.drawframe)
         #self.screen.delay(0)
 
-        self.turtle = Lturtle(canvas=self.screen)
+        self.turtle = Lturtle(canvas=self.screen,master=master)
         self.screen.delay(0)
 
 
-        self.cut_line_turtle = Lturtle(canvas=self.screen)
+        self.cut_line_turtle = Lturtle(canvas=self.screen,master=master)
 
-        self.redraw_turtle = Lturtle(canvas=self.screen)
+        self.redraw_turtle = Lturtle(canvas=self.screen,master=master)
         # beinhaltet das aktuelle Bild (wenn geladen) - Initialisieren
         self.loaded_img = None
         self.loaded_bmp = None
@@ -148,7 +148,7 @@ class App:
         Command of the reset button clears all turtles and screen
         :return:
         """
-        self.isstopped = True
+        #self.isstopped = True
         self.screen.clear()
         self.turtle.reset_turtle()
         self.cut_line_turtle.reset_turtle()
@@ -207,7 +207,7 @@ class App:
             self.popup.destroy()
             self.click = 0
 
-            self.isstopped = True
+
             #self.screen.clear()
             if not self.isdrawing:
                 self.isdrawing = True
@@ -269,7 +269,6 @@ class App:
         If cut button is clicked sets function for click on screen
         :return:
         """
-        self.isstopped = True
         self.cut_line = [] #np.empty([2, 2])
         self.click_num = 0
 
@@ -287,7 +286,6 @@ class App:
         self.tribe_cutted = check_if_tribe_cutted(self.complete_l_string,self.cutting_index)
         if self.tribe_cutted:
             self.coordinates = self.coordinates[:self.cutting_index]
-            self.cutted_branch_direction = ""
             self.cutted_string = self.complete_l_string[:self.cutting_index]
         else:
             self.end_index = get_end_index(self.cutting_index,self.complete_l_string)
@@ -412,7 +410,7 @@ class App:
         """
 
         # gets user values (angel, rule,axiom)
-        self.isstopped = False
+        self.resetBtn['state'] = 'normal'
         self.rules = splitRule(self.rule.get())
         axiom = self.axiom.get()
         iterations = int(self.iteration.get())
@@ -423,17 +421,13 @@ class App:
         self.model = derivation(self.model, iterations, self.rules)
         self.complete_l_string = self.model[-1]
 
-        #initialize turtle
-        self.turtle.create_empty_stack()
-        self.turtle.reset_turtle()
-
         #draw system and saves coodirnates
-        self.coordinates =self.__evaluate_sequence_to_draw(self.model[-1])
+        self.coordinates= self.turtle.draw_sequence(self.model[-1], self.angle_value, True, True)
+        self.master.title("Lindenmayer-System")
         self.__fill_combobox(iterations)
         self.old_iterations =iterations
 
         # enables buttons
-        self.resetBtn['state'] = 'normal'
         self.cutBtn['state'] = 'normal'
 
         self.choosen_iteration=len(self.model) -1
@@ -443,13 +437,6 @@ class App:
         Draws the l-system after the cut
         :return:
         """
-
-        # initialize turtle
-        self.turtle.create_empty_stack()
-        self.turtle.reset_turtle()
-        self.itera_cbox["state"] = "disabled"
-        self.isstopped = False
-
         # derivates regrow models
         self.regrow_rules = splitRule(self.regrow_rule.get().lower())
         iterations = int(self.regrow_iterations.get())
@@ -459,7 +446,8 @@ class App:
         self.model = derivation(self.model, iterations, self.rules)
         self.__insert_regrow_model_into_model(regrow_model)
         #draws new system with cutted branch
-        self.__evaluate_sequence_to_draw(self.model[-1], iterations + self.old_iterations)
+        self.coordinates= self.turtle.draw_sequence(self.model[-1], self.angle_value, True, True)
+        self.master.title("Lindenmayer-System")
         self.__fill_combobox(iterations + self.old_iterations)
 
         # enables buttons
@@ -480,29 +468,6 @@ class App:
                 old_model = old_model[:self.cutting_index] +regrow+ old_model[self.end_index:]
             self.model[self.old_iterations + counter] = old_model
 
-
-    def __evaluate_sequence_to_draw(self,sequence:str):
-        """
-        Evalutes the sequence which should be drawn and changes title to percentage
-        :param sequence: sequence which should be drawn
-        :param iterations: number of iterations
-        :return:
-        """
-        self.screen.tracer(1,1)
-        # For counting percentage of drawing
-        maxCount = len(sequence)
-        coordinates = []
-        for count,command in enumerate(sequence):
-            if self.isstopped:
-                break
-            coordinates_turtle= self.turtle.do_command(command, self.angle_value)
-            coordinates.append(coordinates_turtle)
-            percent = count/ maxCount * 100
-            title = "Lindenmayer-System ," + str(round(percent, 1)) + "% gezeichnet..."
-            self.master.title(title)
-        self.master.title("Lindenmayer-System")
-        self.isstopped = False
-        return coordinates
 
 if __name__ == "__main__":
     # Standart-Fenster erzeugen
