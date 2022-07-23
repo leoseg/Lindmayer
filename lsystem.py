@@ -6,6 +6,7 @@ from utils import splitRule, derivation
 from utils_cutting import *
 import turtle
 from format_checks import *
+from copy import deepcopy
 #--------------------------benötigte Bibliotheken------------------------------
 # Installierbar über die Anaconda cmd.exe
 # ghostscript wird benötigt, zum speichern der Bilder über den command 
@@ -79,6 +80,8 @@ class App:
         self.cutBtn = ttk.Button(master, text="Cut", state=tk.DISABLED, command=lambda: self.presscut())
         self.cutBtn.grid(row=3, column=3, columnspan=2, sticky=tk.E, padx=3)
 
+        self.resetcutBtn = ttk.Button(master, text="Reset Cut", state=tk.DISABLED, command=lambda: self.pressresetcut())
+        self.resetcutBtn.grid(row=4,column=3, columnspan=2,sticky=tk.E, padx=3)
         # self.resetcutBtn = ttk.Button(master, text="Reset Cut", state=tk.DISABLED, command=lambda: self.presscutreset())
         # self.resetcutBtn.grid(row=4, column=3, columnspan=2, sticky=tk.E, padx=3)
         # Speicherort der Regeln
@@ -152,6 +155,7 @@ class App:
         self.itera_cbox['state'] = 'disabled'
         self.resetBtn['state'] = 'disabled'
         self.cutBtn['state'] = 'disabled'
+        self.resetcutBtn['state'] = 'disabled'
 
 
     def click_fun(self, x, y):
@@ -296,14 +300,25 @@ class App:
         self.turtle.reset_turtle()
         self.redraw_turtle.reset_turtle()
         self.cut_line_turtle.reset_turtle()
-        self.loaded_bmp = None
-        self.loaded_img = None
         m = re.search(r"\d", self.itera_cbox.get())
         self.choosen_iteration = int(self.itera_cbox.get()[m.start()])
 
         sequence = self.model[self.choosen_iteration]
         self.coordinates = self.turtle.draw_sequence(sequence,self.angle_value)
         self.complete_l_string = sequence
+
+
+    def pressresetcut(self):
+        """
+        Resets the cut
+        :return:
+        """
+        self.turtle.reset_turtle()
+        self.redraw_turtle.reset_turtle()
+        self.cut_line_turtle.reset_turtle()
+        self.coordinates = self.turtle.draw_sequence(self.complete_string_before_cut, self.angle_value)
+        self.model =deepcopy( self.models_before_cut)
+        self.cutBtn['state'] = 'normal'
 
 
     def __countModels(self, model):
@@ -351,6 +366,8 @@ class App:
         self.model = [axiom]
         self.model = derivation(self.model, iterations, self.rules)
         self.complete_l_string = self.model[-1]
+        self.complete_string_before_cut = deepcopy(self.model[-1])
+        self.models_before_cut = deepcopy(self.model)
 
         #draw system and saves coodirnates
         self.coordinates= self.turtle.draw_sequence(self.model[-1], self.angle_value, True, True)
@@ -377,13 +394,14 @@ class App:
         self.model = derivation(self.model, iterations, self.rules)
         self.__insert_regrow_model_into_model(regrow_model)
         #draws new system with cutted branch
-        self.coordinates= self.turtle.draw_sequence(self.model[-1], self.angle_value, True, True)
+        self.turtle.draw_sequence(self.model[-1], self.angle_value, True, True)
         self.master.title("Lindenmayer-System")
         self.__fill_combobox(iterations + self.old_iterations)
 
         # enables buttons
         self.resetBtn['state'] = 'normal'
         self.cutBtn['state'] = 'disabled'
+        self.resetcutBtn['state'] = 'normal'
 
     def __insert_regrow_model_into_model(self,regrow_model):
         """
