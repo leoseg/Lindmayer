@@ -41,7 +41,7 @@ class App:
         self.axiom = tk.StringVar()
         self.iteration = tk.StringVar()
         self.angle = tk.StringVar()
-        self.regrow_axiom = tk.StringVar()
+        #self.regrow_axiom = tk.StringVar()
         self.regrow_rule = tk.StringVar()
         self.regrow_iterations = tk.StringVar()
 
@@ -156,6 +156,7 @@ class App:
         self.resetBtn['state'] = 'disabled'
         self.cutBtn['state'] = 'disabled'
         self.resetcutBtn['state'] = 'disabled'
+        self.__toggle_grow_edits_state("normal")
 
 
     def click_fun(self, x, y):
@@ -182,7 +183,7 @@ class App:
 
             if self.cutting_index != 0:
                 self.cut_line_turtle.mark_branch_red(self.coordinates[self.cutting_index][0],self.coordinates[self.cutting_index][1])
-                self.__create_cutted_string()
+                self.__cut_plant()
                 self.turtle.reset_turtle()
                 self.redraw_turtle.draw_sequence(self.cutted_string, self.angle_value)
                 self.cut_window()
@@ -198,9 +199,9 @@ class App:
         :return:
         """
         ruleformatOk = checkRuleFormat(self.regrow_rule.get())
-        axiomformatOk = checkAxiomFormat(self.regrow_axiom.get())
+        #axiomformatOk = checkAxiomFormat(self.regrow_axiom.get())
         iterationformatOk = checkIterationFormat(self.regrow_iterations.get())
-        if ruleformatOk and axiomformatOk and iterationformatOk:
+        if ruleformatOk and iterationformatOk:
             self.popup.destroy()
             self.click = 0
 
@@ -231,7 +232,7 @@ class App:
         # Speicherort der Regeln
         self.popup = tk.Toplevel(self.master)
         self.regrow_entry = ttk.Entry(self.popup, width=41, textvariable=self.regrow_rule)
-        self.regrow_axiom_entry = ttk.Entry(self.popup,width=41,textvariable=self.regrow_axiom)
+        #self.regrow_axiom_entry = ttk.Entry(self.popup,width=41,textvariable=self.regrow_axiom)
         self.regrow_iterations_entry = ttk.Entry(self.popup,width=41,textvariable=self.regrow_iterations)
         self.regrow_confirm = ttk.Button(self.popup, text="Bestätigen", width=15, state=tk.NORMAL,
                                          command=lambda: self.pressconfirm())
@@ -239,12 +240,12 @@ class App:
                                          command=lambda: self.presscancel())
 
         self.iterationlabel = ttk.Label(self.popup, text="Iterations:")
-        self.axiomlabel = ttk.Label(self.popup, text="Axiom:")
+        self.axiomlabel = ttk.Label(self.popup, text=f"Cutted branch char was: {self.axiom.get()}")
         self.ruleslabel = ttk.Label(self.popup, text="Regel:")
 
 
         self.axiomlabel.pack()
-        self.regrow_axiom_entry.pack()
+        #self.regrow_axiom_entry.pack()
         self.ruleslabel.pack()
         self.regrow_entry.pack()
         self.iterationlabel.pack()
@@ -255,7 +256,7 @@ class App:
 
         # setze startdaten
         if self.firstcut:
-            self.regrow_axiom_entry.insert(0,"F")
+            #self.regrow_axiom_entry.insert(0,"F")
             self.regrow_entry.insert(0,"F=FF-[-F+F]+[-F+F]")
             self.regrow_iterations_entry.insert(0,1)
             self.firstcut = False
@@ -272,7 +273,7 @@ class App:
         self.screen.onclick(self.click_fun)
 
 
-    def __create_cutted_string(self):
+    def __cut_plant(self):
         """
         Cuts the plant at the nearest branch to the intersection point of the cutting line by removing the
         corresponding chars in the string and coordinates
@@ -288,6 +289,7 @@ class App:
             self.end_index = get_end_index(self.cutting_index,self.complete_l_string)
             self.coordinates = self.coordinates[:self.cutting_index] + self.coordinates[self.end_index :]
             self.cutted_string = self.complete_l_string[:self.cutting_index] + self.complete_l_string[self.end_index :]
+
 
 
     def changeItemIndex(self, event):
@@ -349,6 +351,16 @@ class App:
         self.itera_cbox['values'] = cbItems
 
 
+    def __toggle_grow_edits_state(self,state:str):
+        """
+        Sets the states of the edits for growing the plant in the first place
+        :param state: state to edit
+        :return:
+        """
+        self.ruleEdit['state'] = state
+        self.angleEdit['state'] = state
+        self.axiomEdit['state'] = state
+        self.iterationEdit['state'] = state
     def draw_l_system(self):
         """
         Draws the l-system
@@ -379,6 +391,7 @@ class App:
         self.cutBtn['state'] = 'normal'
 
         self.choosen_iteration=len(self.model) -1
+        self.__toggle_grow_edits_state("disabled")
     # public funktionen - End
     def draw_after_cut(self):
         """
@@ -388,7 +401,7 @@ class App:
         # derivates regrow models
         self.regrow_rules = splitRule(self.regrow_rule.get().lower())
         iterations = int(self.regrow_iterations.get())
-        regrow_model = derivation([self.regrow_axiom.get().lower()], iterations, self.regrow_rules)
+        regrow_model = derivation([self.complete_l_string[self.cutting_index].lower()], iterations, self.regrow_rules)
 
         # derivates models
         self.model = derivation(self.model, iterations, self.rules)
