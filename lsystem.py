@@ -283,11 +283,11 @@ class App:
 
         self.tribe_cutted = check_if_tribe_cutted(self.complete_l_string,self.cutting_index)
         if self.tribe_cutted:
-            self.coordinates = self.coordinates[:self.cutting_index]
+            #self.coordinates = self.coordinates[:self.cutting_index]
             self.cutted_string = self.complete_l_string[:self.cutting_index]
         else:
             self.end_index = get_end_index(self.cutting_index,self.complete_l_string)
-            self.coordinates = self.coordinates[:self.cutting_index] + self.coordinates[self.end_index :]
+            #self.coordinates = self.coordinates[:self.cutting_index] + self.coordinates[self.end_index :]
             self.cutted_string = self.complete_l_string[:self.cutting_index] + self.complete_l_string[self.end_index :]
 
 
