@@ -234,14 +234,14 @@ class App:
         self.regrow_entry = ttk.Entry(self.popup, width=41, textvariable=self.regrow_rule)
         #self.regrow_axiom_entry = ttk.Entry(self.popup,width=41,textvariable=self.regrow_axiom)
         self.regrow_iterations_entry = ttk.Entry(self.popup,width=41,textvariable=self.regrow_iterations)
-        self.regrow_confirm = ttk.Button(self.popup, text="Bestätigen", width=15, state=tk.NORMAL,
+        self.regrow_confirm = ttk.Button(self.popup, text="Confirm", width=15, state=tk.NORMAL,
                                          command=lambda: self.pressconfirm())
-        self.cancel = ttk.Button(self.popup,text="Abbrechen",width=15, state=tk.NORMAL,
+        self.cancel = ttk.Button(self.popup,text="Cancel",width=15, state=tk.NORMAL,
                                          command=lambda: self.presscancel())
 
         self.iterationlabel = ttk.Label(self.popup, text="Iterations:")
         self.axiomlabel = ttk.Label(self.popup, text=f"Cutted branch char was: {self.axiom.get()}")
-        self.ruleslabel = ttk.Label(self.popup, text="Regel:")
+        self.ruleslabel = ttk.Label(self.popup, text="Rule:")
 
 
         self.axiomlabel.pack()
