@@ -321,6 +321,9 @@ class App:
         self.coordinates = self.turtle.draw_sequence(self.complete_string_before_cut, self.angle_value)
         self.model =deepcopy( self.models_before_cut)
         self.cutBtn['state'] = 'normal'
+        self.itera_cbox.set(f"Iteration {self.old_iterations}")
+        self.changeItemIndex(None)
+        self.__fill_combobox(self.old_iterations)
 
 
     def __countModels(self, model):
