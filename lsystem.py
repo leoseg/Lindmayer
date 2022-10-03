@@ -1,4 +1,3 @@
-from tkinter.messagebox import showerror
 import tkinter as tk
 from tkinter import ttk
 from lturtle import Lturtle
@@ -7,14 +6,9 @@ from utils_cutting import *
 import turtle
 from format_checks import *
 from copy import deepcopy
-#--------------------------benötigte Bibliotheken------------------------------
-# Installierbar über die Anaconda cmd.exe
-# ghostscript wird benötigt, zum speichern der Bilder über den command 
-# --> conda install -c conda-forge ghostscript
-# pillow wird benötigt, installieren über den command 
-# --> conda install -c conda-forge pillow
+#Install with conda with 'conda env create -f env.yml'
 
-# Größe des Fensters
+# Size of window
 winHeight = 480
 winWidth = 600
 extension = '.png'
@@ -25,7 +19,7 @@ class App:
     """
     Main class which creates the app
     """
-    # Konstruktor
+
     def __init__(self, master: tk.Tk):
         """
         Initialization which creates all elements of the gui and initalizes turtles
@@ -121,12 +115,11 @@ class App:
         :return:
         """
         candraw = False
-        # prüfen, ob die Eingabefelder richtig befüllt sind
+        # Check if rules are in correct format
         axiomOk = checkAxiomFormat(self.axiomEdit.get())
         ruleformatOk = checkRuleFormat(self.ruleEdit.get())
         iterationOk = checkIterationFormat(self.iterationEdit.get())
         angleOk = checkAngleFormat(self.angleEdit.get())
-        # Auswertung der Prüfung
         if iterationOk and angleOk and ruleformatOk and axiomOk:
             candraw = True
         if candraw:
@@ -142,7 +135,7 @@ class App:
         Command of the reset button clears all turtles and screen
         :return:
         """
-        #self.isstopped = True
+
         self.screen.clear()
         self.turtle.reset_turtle()
         self.cut_line_turtle.reset_turtle()
@@ -240,8 +233,8 @@ class App:
         self.ruleslabel = ttk.Label(self.popup, text="Rule:")
 
 
+        # opens window
         self.axiomlabel.pack()
-        #self.regrow_axiom_entry.pack()
         self.ruleslabel.pack()
         self.regrow_entry.pack()
         self.iterationlabel.pack()
@@ -293,7 +286,7 @@ class App:
         :param event:
         :return:
         """
-        # initialisieren
+        # initialize
         self.turtle.reset_turtle()
         self.redraw_turtle.reset_turtle()
         self.cut_line_turtle.reset_turtle()
