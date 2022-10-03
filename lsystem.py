@@ -45,7 +45,7 @@ class App:
         self.regrow_rule = tk.StringVar()
         self.regrow_iterations = tk.StringVar()
 
-        # Aufbau der Gui
+        # Elements of GUI
         self.master.resizable(False, False)
         self.master.title("Lindenmayer-System")
         self.drawframe = tk.Canvas(master, width=winWidth, height=winHeight)
@@ -82,41 +82,39 @@ class App:
 
         self.resetcutBtn = ttk.Button(master, text="Reset Cut", state=tk.DISABLED, command=lambda: self.pressresetcut())
         self.resetcutBtn.grid(row=4,column=3, columnspan=2,sticky=tk.E, padx=3)
-        # self.resetcutBtn = ttk.Button(master, text="Reset Cut", state=tk.DISABLED, command=lambda: self.presscutreset())
-        # self.resetcutBtn.grid(row=4, column=3, columnspan=2, sticky=tk.E, padx=3)
-        # Speicherort der Regeln
+
+        # Variables to save rules
         self.rules = {}
         self.regrow_rules = {}
 
-        # Speicherort der Strings
+        # Stores lindenmayer model
         self.model=[]
 
-        # Speicherort der exportierten Bilder
-        self.output = {}
-
+        # Set if its the firstcut
         self.firstcut = True
 
-        # Erstellen der Turtles
+        # Screen for drawing turtles
         self.screen = turtle.TurtleScreen(self.drawframe)
-        #self.screen.delay(0)
 
+        # Creates turtle for drawing simulation
         self.turtle = Lturtle(canvas=self.screen,master=master)
         self.screen.delay(0)
 
-
+        # Creates turtle for cutting line
         self.cut_line_turtle = Lturtle(canvas=self.screen,master=master)
 
+        # Creates turtle for redraw choosen iteration
         self.redraw_turtle = Lturtle(canvas=self.screen,master=master)
-        # beinhaltet das aktuelle Bild (wenn geladen) - Initialisieren
-        self.loaded_img = None
-        self.loaded_bmp = None
 
-        #startwerte
+
+        #startvalues
         self.ruleEdit.insert(0,"F=FF-[-F+F+F]+ [+F-F+F]")
         self.angleEdit.insert(0,"22.5")
         self.axiomEdit.insert(0,"F")
         self.iterationEdit.insert(0,2)
-    # funktion für GUI-Elemente
+
+
+
     def pressgrow(self):
         """
         Command of the grow button,checks the given rules if they ok draws the lsystem
@@ -199,14 +197,12 @@ class App:
         :return:
         """
         ruleformatOk = checkRuleFormat(self.regrow_rule.get())
-        #axiomformatOk = checkAxiomFormat(self.regrow_axiom.get())
         iterationformatOk = checkIterationFormat(self.regrow_iterations.get())
         if ruleformatOk and iterationformatOk:
             self.popup.destroy()
             self.click = 0
 
 
-            #self.screen.clear()
             if not self.isdrawing:
                 self.isdrawing = True
                 self.draw_after_cut()
@@ -229,7 +225,7 @@ class App:
         Functions that creates the cut window
         :return:
         """
-        # Speicherort der Regeln
+
         self.popup = tk.Toplevel(self.master)
         self.regrow_entry = ttk.Entry(self.popup, width=41, textvariable=self.regrow_rule)
         #self.regrow_axiom_entry = ttk.Entry(self.popup,width=41,textvariable=self.regrow_axiom)
@@ -254,9 +250,8 @@ class App:
         self.cancel.pack()
 
 
-        # setze startdaten
+        # sets startdata
         if self.firstcut:
-            #self.regrow_axiom_entry.insert(0,"F")
             self.regrow_entry.insert(0,"F=FF-[-F+F]+[-F+F]")
             self.regrow_iterations_entry.insert(0,1)
             self.firstcut = False
@@ -267,7 +262,7 @@ class App:
         If cut button is clicked sets function for click on screen
         :return:
         """
-        self.cut_line = [] #np.empty([2, 2])
+        self.cut_line = []
         self.click_num = 0
 
         self.screen.onclick(self.click_fun)
@@ -345,7 +340,7 @@ class App:
         :param maxiteration: number of iterations
         :return:
         """
-        self.output.clear()
+
         self.itera_cbox['state'] = 'readonly'
         self.itera_cbox['values'] = []
         cbItems = []
